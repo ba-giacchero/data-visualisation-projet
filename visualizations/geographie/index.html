@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>La carte des groupes sportifs | Jeux Olympiques</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="back-link" href="../../index.html">← Toutes les visualisations</a>
+    <div class="eyebrow">Données olympiques · Jeux d’été</div>
+    <h1>La carte des groupes sportifs</h1>
+    <p class="intro">Où se concentrent les spécialistes d’une discipline&nbsp;? Explorez la géographie des délégations et ouvrez chaque pays pour voir sa composition sportive.</p>
+  </header>
+  <main>
+    <section class="controls" aria-label="Contrôles de la carte">
+      <div class="control-group"><label for="year">Édition</label><select id="year"></select></div>
+      <div class="control-group sport-control"><label for="sport">Discipline</label><select id="sport"></select></div>
+      <button id="reset" class="reset-button" type="button">Réinitialiser</button>
+      <div class="map-summary"><strong id="athlete-total">—</strong><span id="summary-label">athlètes affichés</span></div>
+    </section>
+    <section class="map-layout">
+      <div class="map-panel">
+        <div class="map-heading"><div><span class="eyebrow">Spécialisation géographique</span><h2 id="map-title">Tous les sports</h2></div><p>Cliquez sur un pays pour explorer sa délégation.</p></div>
+        <div id="map" role="img" aria-label="Carte mondiale des délégations olympiques"></div>
+        <div class="scale"><span>Moins d’athlètes</span><i></i><span>Plus d’athlètes</span></div>
+      </div>
+      <aside id="detail-panel" class="detail-panel" aria-live="polite">
+        <button id="close-detail" class="close-button" type="button" aria-label="Fermer le détail">×</button>
+        <div class="eyebrow">Drill-down</div>
+        <h2 id="detail-title">Choisissez un pays</h2>
+        <p id="detail-subtitle">La répartition des athlètes par sport apparaîtra ici.</p>
+        <div id="detail-chart"></div>
+        <div id="detail-legend"></div>
+      </aside>
+    </section>
+    <p class="source-note">Source : 120 Years of Olympic History (Kaggle). Les délégations sont calculées en comptant chaque athlète une seule fois par édition. Les pays sans correspondance cartographique restent visibles dans les données mais ne peuvent pas être dessinés sur la carte.</p>
+  </main>
+</body>
+</html>

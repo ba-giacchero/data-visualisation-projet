@@ -1,0 +1,26 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+:root { --ink:#17211d; --muted:#68736d; --paper:#f4f0e8; --panel:#fbfaf6; --line:#d9d8ce; --accent:#e05a3f; --teal:#287c78; --yellow:#e8bd54; --sea:#dce8e2; }
+* { box-sizing:border-box; }
+body { margin:0; color:var(--ink); background:var(--paper); font-family:'DM Sans',sans-serif; }
+body::before { content:''; position:fixed; inset:0; pointer-events:none; opacity:.32; background-image:radial-gradient(#c7c0b1 .7px,transparent .7px); background-size:10px 10px; }
+.masthead,main { position:relative; max-width:1240px; margin:0 auto; padding-left:34px; padding-right:34px; }
+.masthead { padding-top:42px; padding-bottom:36px; }
+.back-link { display:inline-block; margin-bottom:34px; color:var(--accent); font-size:13px; text-decoration:none; }
+.eyebrow { color:#a93628; font-size:11px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; }
+h1,h2 { margin:0; font-family:'Space Grotesk',sans-serif; letter-spacing:-.04em; }
+h1 { margin-top:12px; font-size:clamp(39px,6.5vw,76px); line-height:.98; }
+h2 { font-size:clamp(22px,3vw,32px); }
+.intro { max-width:680px; margin:20px 0 0; color:var(--muted); font-size:17px; line-height:1.55; }
+.controls { display:flex; align-items:end; gap:22px; padding:21px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
+.control-group { display:grid; gap:8px; }.control-group label { color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+select { min-width:145px; border:1px solid #bfc3b9; border-radius:2px; background:var(--panel); color:var(--ink); font:inherit; padding:10px 12px; }.sport-control select { min-width:210px; }
+.reset-button { border:0; background:none; color:#a93628; cursor:pointer; font:500 13px 'DM Sans',sans-serif; padding:10px 0; }
+.map-summary { display:grid; gap:2px; margin-left:auto; text-align:right; }.map-summary strong { font:600 27px 'Space Grotesk',sans-serif; }.map-summary span { color:var(--muted); font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+.map-layout { display:grid; grid-template-columns:minmax(0, 1fr) 300px; gap:28px; border-top:1px solid var(--line); padding-top:28px; }
+.map-heading { display:flex; align-items:end; justify-content:space-between; gap:20px; }.map-heading p { max-width:215px; margin:0; color:var(--muted); font-size:12px; line-height:1.5; text-align:right; }
+#map { min-height:485px; margin-top:12px; overflow:hidden; background:var(--sea); }.map-svg { display:block; width:100%; height:auto; }.sphere { fill:var(--sea); }.country { stroke:var(--panel); stroke-width:.55px; cursor:pointer; transition:opacity .15s,stroke .15s; }.country:hover,.country.active { stroke:var(--ink); stroke-width:1.5px; }.country.no-data { fill:#c8d1ca; cursor:default; }.country.dimmed { opacity:.45; }
+.scale { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:11px; }.scale i { height:8px; flex:1; max-width:240px; background:linear-gradient(90deg,#dbe8e1,#89b2a5,#287c78,#174d4b); }
+.detail-panel { position:relative; min-height:485px; padding:25px 21px; border:1px solid var(--line); background:var(--panel); }.detail-panel.empty { display:flex; flex-direction:column; justify-content:center; }.close-button { position:absolute; top:12px; right:14px; border:0; background:none; color:var(--muted); cursor:pointer; font-size:24px; line-height:1; }.detail-panel h2 { margin-top:8px; }.detail-panel p { color:var(--muted); font-size:13px; line-height:1.5; }.donut { display:block; margin:24px auto 13px; }.donut-total { fill:var(--ink); font:600 19px 'Space Grotesk',sans-serif; text-anchor:middle; }.donut-label { fill:var(--muted); font:11px 'DM Sans',sans-serif; text-anchor:middle; }.legend-item { display:flex; align-items:center; gap:8px; margin:7px 0; font-size:12px; }.legend-item i { width:9px; height:9px; flex:none; }.legend-item span:last-child { margin-left:auto; color:var(--muted); }
+.source-note { max-width:850px; margin:23px 0 45px; color:var(--muted); font-size:12px; line-height:1.6; }
+@media(max-width:850px) { .map-layout { grid-template-columns:1fr; }.detail-panel { min-height:380px; }.map-heading { align-items:start; flex-direction:column; }.map-heading p { text-align:left; }.map-summary { margin-left:0; text-align:left; } }
+@media(max-width:700px) { .masthead,main { padding-left:18px; padding-right:18px; }.masthead { padding-top:28px; }.controls { gap:15px; } #map { min-height:330px; }.sport-control { width:100%; }.sport-control select { width:100%; } }

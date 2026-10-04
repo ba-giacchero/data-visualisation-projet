@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+:root { --ink:#17211d; --muted:#68736d; --paper:#f4f0e8; --panel:#fbfaf6; --line:#d9d8ce; --accent:#e05a3f; --teal:#287c78; --yellow:#e8bd54; }
+* { box-sizing:border-box; }
+body { margin:0; color:var(--ink); background:var(--paper); font-family:'DM Sans',sans-serif; }
+body::before { content:''; position:fixed; inset:0; pointer-events:none; opacity:.32; background-image:radial-gradient(#c7c0b1 .7px,transparent .7px); background-size:10px 10px; }
+.masthead, main { position:relative; max-width:1240px; margin:0 auto; padding-left:34px; padding-right:34px; }
+.masthead { padding-top:42px; padding-bottom:36px; }
+.back-link { display:inline-block; margin-bottom:34px; color:var(--accent); font-size:13px; text-decoration:none; }
+.eyebrow { color:#a93628; font-size:11px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; }
+h1,h2 { margin:0; font-family:'Space Grotesk',sans-serif; letter-spacing:-.04em; }
+h1 { margin-top:12px; font-size:clamp(42px,7vw,78px); line-height:.98; }
+h2 { font-size:clamp(23px,3vw,34px); }
+.intro { max-width:630px; margin:20px 0 0; color:var(--muted); font-size:17px; line-height:1.55; }
+.controls,.chart-panel { border-top:1px solid var(--line); }
+.controls { display:flex; align-items:end; gap:20px; padding:21px 0; flex-wrap:wrap; }
+.control-group { display:grid; gap:8px; }
+.control-group label { color:var(--muted); font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+select { min-width:160px; border:1px solid #bfc3b9; border-radius:2px; background:var(--panel); color:var(--ink); font:inherit; padding:10px 12px; }
+#year { min-width:120px; }
+.reset-button { border:0; background:none; color:#a93628; cursor:pointer; font:500 13px 'DM Sans',sans-serif; padding:10px 0; }
+.chart-meta { display:flex; align-items:end; justify-content:space-between; gap:24px; padding:29px 0 16px; }
+.chart-meta p { max-width:290px; margin:0; color:var(--muted); font-size:12px; line-height:1.5; text-align:right; }
+.chart-panel { position:relative; overflow-x:auto; }
+#chart { min-height:560px; padding-top:18px; }
+svg { display:block; min-width:700px; }
+.axis path,.axis line { stroke:#bdc2b9; }
+.axis text { fill:var(--muted); font:11px 'DM Sans',sans-serif; }
+.axis-title { fill:var(--ink); font:600 13px 'DM Sans',sans-serif; }
+.sport-line { fill:none; stroke:#87918a; stroke-width:1.35; stroke-opacity:.28; transition:stroke .15s,stroke-opacity .15s,stroke-width .15s; }
+.sport-line.selected { stroke:var(--accent); stroke-width:3; stroke-opacity:1; }
+.sport-line.brushed { stroke:var(--teal); stroke-width:2.4; stroke-opacity:.95; }
+.sport-line.selected.brushed { stroke:var(--accent); stroke-width:3.5; }
+.brush .selection { fill:var(--yellow); fill-opacity:.25; stroke:var(--accent); }
+.brush .handle { fill:var(--accent); }
+.tooltip { position:fixed; z-index:4; pointer-events:none; display:none; min-width:215px; padding:13px 15px; border:1px solid var(--ink); background:var(--ink); color:#fff; box-shadow:5px 5px 0 var(--accent); }
+.tooltip.visible { display:block; }
+.tooltip strong { display:block; margin-bottom:7px; color:var(--yellow); font:600 16px 'Space Grotesk',sans-serif; }
+.tooltip-row { display:flex; justify-content:space-between; gap:18px; color:#dce3dc; font-size:12px; line-height:1.7; }
+.tooltip-row b { color:#fff; font-weight:500; }
+.legend-note,.source-note { color:var(--muted); font-size:12px; line-height:1.6; }
+.legend-note { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:17px 0 7px; }
+.legend-line { width:25px; height:3px; margin-left:13px; background:#87918a; opacity:.3; }
+.legend-line.selected { background:var(--accent); opacity:1; }.legend-line.brushed { background:var(--teal); opacity:1; }.legend-line.muted { background:#87918a; }
+.source-note { max-width:800px; margin:0 0 46px; }
+@media(max-width:700px) { .masthead,main { padding-left:18px; padding-right:18px; } .masthead { padding-top:28px; } .chart-meta { align-items:start; flex-direction:column; } .chart-meta p { text-align:left; } .controls { gap:15px; } }

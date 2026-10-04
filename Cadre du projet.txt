@@ -1,0 +1,198 @@
+Description minimale du projet
+Au-delà des Médailles : Anatomie, Économie et Géographie des JO de Paris 2024 
+Objectif : Dépasser le simple tableau des médailles pour comprendre les facteurs socio-économiques, morphologiques et culturels qui façonnent les délégations olympiques. 
+Données nécessaires : Dataset des athlètes et résultats des JO des jeux de Athènes 1896 aux jeux de Rio 2016 (nom, âge, sexe, taille, poids, équipe, NOC, jeux, année, saison, ville d’accueil, sport, événement, médaille) et données de la Banque Mondiale (PIB, PIB/habitant),.
+
+Lien Kaggle JO :
+https://www.kaggle.com/datasets/heesoo37/120-years-of-olympic-history-athletes-and-results/data 
+Lien Kaggle PIB: https://www.kaggle.com/datasets/fredericksalazar/global-gdp-pib-per-capita-dataset-1960-present
+
+
+1. Base de données et objectif du projet
+
+L'objectif du projet est d'étudier l'évolution des Jeux Olympiques d'été entre 1960 et 2016, en croisant deux dimensions principales :
+
+La performance sportive des pays.
+Leur situation économique.
+
+
+Nous souhaitons notamment répondre aux questions suivantes :
+
+Les pays les plus riches envoient-ils de plus grandes délégations ?
+La richesse d'un pays est-elle directement liée à ses performances olympiques ?
+Certains pays obtiennent-ils de grands résultats malgré des moyens économiques plus faibles ?
+Dans quels sports les différents pays se spécialisent-ils ?
+Comment les performances et la taille des délégations évoluent-elles au cours du temps ?
+Les caractéristiques physiques des athlètes varient-elles fortement selon les disciplines sportives ?
+
+
+Données olympiques
+
+
+Source : 120 Years of Olympic History: Athletes and Results – Kaggle
+Le jeu de données complet contient les résultats des Jeux Olympiques de 1896 à 2016. Pour le périmètre de notre projet, nous utiliserons principalement les Jeux Olympiques d'été de 1960 à 2016.
+
+Données disponibles par athlète :
+
+Nom de l'athlète
+Sexe
+Âge
+Taille
+Poids
+Pays / Comité National Olympique (NOC)
+Année de participation
+Sport pratiqué
+Épreuve
+Médaille obtenue (Or, Argent, Bronze ou Aucune)
+
+Lien vers le dataset : 120 Years of Olympic History (Kaggle)
+
+Données économiques
+Les données olympiques seront croisées avec des données économiques historiques par pays. Les indicateurs retenus sont :
+
+Le Produit Intérieur Brut (PIB).
+Le PIB par habitant.
+La population totale (afin de calculer des ratios démographiques).
+
+Préparation et nettoyage des données
+Le dataset olympique de base contient une ligne par athlète et par épreuve. Un même athlète peut donc apparaître plusieurs fois lors d'une même édition des Jeux s'il participe à plusieurs épreuves.
+
+Pour garantir la justesse de nos analyses et éviter les biais statistiques, la préparation suivante sera nécessaire :
+
+Délégations : La taille d'une délégation nationale sera calculée en comptant le nombre d'athlètes uniques, et non le nombre de participations.
+
+
+Médailles collectives : Les médailles obtenues dans les sports collectifs (ex. : football, basket-ball) ne devront être comptabilisées qu'une seule fois pour le pays, et non multipliées par le nombre de membres de l'équipe.
+
+Jointure : Les codes NOC (Comités Olympiques) devront être normalisés et associés correctement aux codes pays standards de nos données économiques.
+Pistes de Visualisations Interactives
+
+4 pistes pour les 4 membres du groupe :
+
+1. L'Économie de la Performance (Le Poids de la Richesse)
+L'objectif est de vérifier si la richesse d'un pays dicte la taille de sa délégation et ses chances de victoire.
+Visualisation : Un nuage de points (Scatter plot). L'axe X représente le PIB par habitant (échelle logarithmique conseillée), l'axe Y la taille de la délégation (ou le nombre de médailles historiques/actuelles), et la taille des bulles représente la population totale du pays.
+Interactivité :
+Hover (Survol) : Affiche une infobulle avec le nom du pays, son PIB exact et son ratio athlètes/habitants.
+Filtres : Boutons pour masquer/afficher des continents spécifiques.
+Toggle (Bascule) : Un bouton pour passer l'axe Y du "Nombre d'athlètes" au "Nombre de médailles" pour voir si la tendance se maintient.
+
+2. L'Anatomie de l'Élite (La Morphologie par Sport)
+Montrer l'hyper-spécialisation des corps sportifs modernes en comparant les mensurations des athlètes selon leur discipline.
+Visualisation : Un graphique en coordonnées parallèles (Parallel coordinates) ou une série de nuages de points liés. Les axes représentent l'Âge, la Taille et le Poids.
+Interactivité :
+Brushing (Sélection par pinceau) : L'utilisateur peut sélectionner une tranche de taille (ex: 2m00 à 2m20) pour voir instantanément quelles lignes (sports) s'illuminent (généralement le basket ou le volley).
+Highlight (Mise en évidence) : Un menu déroulant pour isoler deux sports à comparer visuellement (ex: Haltérophilie vs Gymnastique).
+
+3. La Carte des Groupes Sportifs (Spécialisation Géographique)
+Où se concentrent les experts d'une discipline spécifique ?
+Visualisation : Une carte en nuances de couleurs du monde. Par défaut, la couleur des pays reflète la taille totale de leur délégation.
+Interactivité :
+Sélecteur de sport : Un menu permettant de choisir un sport spécifique (ex: Escrime, Athlétisme). La carte se recolore instantanément pour ne montrer que la densité d'athlètes envoyés dans cette discipline.
+Drill-down (Plongée dans les données) : Au clic sur un pays (ex: la Chine), une petite fenêtre (ou un graphique circulaire à côté) s'ouvre pour afficher la répartition interne de ses athlètes par sport.
+
+4. Le Bilan de la Parité (Analyse du Genre)
+Paris 2024 s'est annoncé comme les premiers Jeux Olympiques paritaires. Cette visualisation permet de vérifier si cette parité se retrouve au sein de chaque pays.
+Visualisation : Un graphique à barres empilées divergentes (Diverging stacked bar chart). Le centre (0) représente la parité parfaite, les barres partent vers la gauche pour les hommes et vers la droite pour les femmes.
+Interactivité :
+Tri dynamique : Boutons pour trier le graphique : "Du plus paritaire au moins paritaire", "Par ordre alphabétique", ou "Par taille de délégation".
+Filtres conditionnels : Une case à cocher "Afficher uniquement les pays avec une délégation > 50 athlètes" pour éviter que les micro-délégations de 2 personnes ne faussent la lecture de la parité.
+
+
+
+Les END USERS
+
+1. Le Curieux / Passionné de Sport (Grand Public)
+Ce profil cherche le divertissement, l'anecdote ou à vérifier une information simple sur son pays ou son sport favori. Il n'a pas de formation en statistiques.
+Objectif : Trouver rapidement des informations sur une nation précise, s'amuser à comparer des extrêmes (l'athlète le plus grand, le pays avec le plus de participants).
+Interactions privilégiées : Le survol (hover) pour obtenir des informations textuelles simples sans avoir à interpréter des axes complexes. La carte choroplèthe interactive est son point d'entrée naturel.
+Ce qu'il faut éviter pour lui : Les graphiques surchargés ou les échelles logarithmiques par défaut sans explication.
+5 tâches :
+
+
+Rechercher (Search/Locate) : Trouver instantanément son propre pays sur une carte mondiale.#tache
+Explorer (Browse) : Survoler les points d'un graphique pour découvrir des anecdotes (ex: le nom de l'athlète le plus grand).
+Identifier des extrêmes (Discover Extremes) : Repérer visuellement le pays avec la plus grosse délégation.
+Comparer (Compare) : Regarder la répartition Hommes/Femmes globale des Jeux.
+Filtrer simplement (Filter) : Cliquer sur un sport spécifique pour voir uniquement les données de ce sport.
+
+2. Le Journaliste de Données (Data Journalist)
+Le journaliste utilise l’outil pour trouver un angle d'article ou illustrer un sujet (par exemple : "L'argent fait-il toujours gagner aux JO ?" ou "La vraie parité des Jeux").
+Objectif : Dégager des tendances inattendues, isoler des anomalies (un pays pauvre qui surperforme) et extraire des corrélations claires.
+Interactions privilégiées : Les options pour changer de métrique (passer du nombre d'athlètes au ratio médailles/PIB), restreindre l'étude à un continent spécifique, et les filtres croisés (isoler un sport précis dans un graphique économique).
+
+
+5 tâches :
+
+
+Corréler (Discover Correlation) : Vérifier visuellement si un PIB élevé entraîne systématiquement plus d'athlètes qualifiés.
+Identifier des anomalies (Identify Outliers) : Isoler les pays "pauvres" qui envoient des délégations anormalement grandes.
+Restreindre (Filter/Slice) : Exclure un continent ou des pays spécifiques pour ne comparer que les pays européens entre eux.
+Dériver (Derive) : Changer la métrique d'un graphique (passer du volume brut d'athlètes à un ratio athlètes/habitants).
+Synthétiser (Summarize) : Extraire une tendance globale sur l'évolution morphologique dans un sport donné pour illustrer un article.
+3. L'Analyste Sportif ou Stratège de Fédération
+Il représente les comités nationaux olympiques ou les fédérations sportives qui cherchent à évaluer la compétitivité de leur nation par rapport à des pays comparables (même taille, même PIB).
+Objectif : Faire du parangonnage (benchmarking). Comprendre dans quels sports les pays de même profil économique investissent, ou observer la morphologie standard des élites d'une discipline pour orienter la détection de talents.
+Interactions privilégiées : Le graphique en coordonnées parallèles (pour filtrer finement les morphologies), l'ajout/masquage manuel de pays spécifiques pour créer des groupes de comparaison sur mesure.
+5 tâches :
+Faire du parangonnage (Benchmark) : Comparer la composition de la délégation de son pays avec celle d'un pays au PIB similaire.
+Analyser des distributions (Analyze Distribution) : Étudier la concentration des tailles et poids optimaux pour un sport précis (ex: Haltérophilie).
+Regrouper (Cluster) : Identifier les "bastions" géographiques où se concentrent les athlètes d'une discipline spécifique.
+Filtrer multidimensionnellement (Filter) : Sélectionner une tranche de taille, une tranche d'âge, et voir quels sports correspondent à ce profil.
+Évaluer des proportions (Part-to-whole) : Observer quelle part de sa délégation totale un pays alloue à un sport spécifique.
+
+
+Tâche (Typologie)
+Description de la tâche
+Profils Utilisateurs
+Locate
+Retrouver rapidement un pays ou un sport.
+Passionné de sport
+Compare
+Comparer les résultats de plusieurs pays ou plusieurs éditions des Jeux.
+Passionné de sport, Journaliste sportif / Data journalist
+Find Extremes
+Trouver les pays ayant les plus grandes délégations ou le plus de médailles.
+Passionné de sport
+Browse
+Explorer les performances dans différents sports et différentes éditions.
+Passionné de sport
+Filter
+Limiter les données ou créer un sous-ensemble précis selon le pays, le sport, l'année ou le sexe.
+Passionné de sport, Analyste sportif / Fédération
+Correlate
+Observer la relation entre richesse économique et résultats olympiques.
+Journaliste sportif / Data journalist
+Find Outliers
+Identifier des pays dont les résultats sont très différents de ceux de pays économiquement comparables.
+Journaliste sportif / Data journalist
+Analyze Trends
+Observer ou suivre l'évolution d'un pays, de ses résultats ou de la taille d'une délégation sur plusieurs décennies.
+Journaliste sportif / Data journalist, Analyste sportif / Fédération
+Summarize
+Dégager une tendance générale sur un sport ou un groupe de pays.
+Journaliste sportif / Data journalist
+Benchmark
+Comparer un pays à des pays ayant un niveau économique similaire.
+Analyste sportif / Fédération
+Identify Specialization
+Identifier les sports dans lesquels un pays est particulièrement présent ou performant.
+Analyste sportif / Fédération
+Compare Distributions
+Comparer les caractéristiques physiques des athlètes entre plusieurs sports.
+Analyste sportif / Fédération
+
+Type of data
+Data set JO :
+
+
+Performances et caractéristiques individuelles des athlètes olympiques (athlete_events.csv) : Ce dataset est une table combinant des attributs quantitatifs (âge, taille, poids, année), catégoriels (athlète, pays, sport) et ordinaux (type de médaille).
+
+Référentiel géographique des comités olympiques (noc_regions.csv) : Ce dataset est une table constituée exclusivement d'attributs catégoriels servant de dictionnaire de correspondances (codes de comités et noms de régions).
+
+
+Data set PIB:
+
+
+Évolution annuelle du PIB par habitant par pays (pib_per_capita_countries_dataset.csv) : Ce dataset est une table liant des attributs catégoriels (identifiants individuels des pays) à des valeurs quantitatives ordonnées dans le temps (PIB par habitant annuel).
+

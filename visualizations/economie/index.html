@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Le poids de la richesse | Jeux Olympiques</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="eyebrow">Données olympiques · 1960—2016</div>
+    <h1>Le poids de la richesse</h1>
+    <p class="intro">La richesse d’un pays accompagne-t-elle la taille de sa délégation et ses résultats aux Jeux d’été&nbsp;?</p>
+  </header>
+
+  <main>
+    <section class="controls" aria-label="Contrôles de la visualisation">
+      <div class="control-group">
+        <label for="year">Édition</label>
+        <select id="year"></select>
+      </div>
+      <div class="control-group metric-control">
+        <span class="control-label">Axe vertical</span>
+        <div class="segmented" role="group" aria-label="Métrique verticale">
+          <button class="metric-button active" data-metric="athletes" type="button">Athlètes</button>
+          <button class="metric-button" data-metric="medals" type="button">Médailles</button>
+        </div>
+      </div>
+      <button id="reset" class="reset-button" type="button">Réinitialiser la vue</button>
+      <div class="search-wrap">
+        <label for="search">Rechercher un pays</label>
+        <input id="search" type="search" placeholder="Ex. France" autocomplete="off">
+      </div>
+    </section>
+
+    <section class="continent-filter" aria-label="Filtrer par continent">
+      <span class="filter-title">Continents</span>
+      <div id="continent-buttons"></div>
+    </section>
+
+    <section class="stats" aria-label="Résumé">
+      <div><span class="stat-value" id="country-count">—</span><span class="stat-label">pays affichés</span></div>
+      <div><span class="stat-value" id="athlete-total">—</span><span class="stat-label">athlètes uniques</span></div>
+      <div><span class="stat-value" id="medal-total">—</span><span class="stat-label">médailles comptées</span></div>
+    </section>
+
+    <section class="chart-panel">
+      <div class="chart-heading">
+        <div>
+          <div class="eyebrow">Corrélation</div>
+          <h2 id="chart-title">PIB par habitant et taille des délégations</h2>
+        </div>
+        <p class="chart-note">Échelle logarithmique à l’horizontale · la taille des bulles représente la population</p>
+      </div>
+      <div id="chart" role="img" aria-label="Nuage de points du PIB par habitant et des délégations olympiques"></div>
+      <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
+      <p class="source-note">Sources : 120 Years of Olympic History, PIB par habitant et indicateurs démographiques WDI. La population provient de <em>wdi_wide.csv</em> ; le ratio est exprimé en athlètes par million d’habitants.</p>
+    </section>
+  </main>
+</body>
+</html>

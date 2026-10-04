@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Le bilan de la parité | Jeux Olympiques</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="back-link" href="../../index.html">← Toutes les visualisations</a>
+    <div class="eyebrow">Données olympiques · Analyse du genre</div>
+    <h1>Le bilan de la parité</h1>
+    <p class="intro">La parité annoncée pour Paris 2024 se retrouve-t-elle dans la composition des délégations olympiques&nbsp;? Comparez la part des femmes et des hommes pays par pays.</p>
+  </header>
+  <main>
+    <section class="controls" aria-label="Contrôles de la visualisation">
+      <div class="control-group"><label for="year">Édition</label><select id="year"></select></div>
+      <div class="sort-group" role="group" aria-label="Trier les pays"><span class="control-label">Trier par</span><div class="segmented"><button class="sort-button active" data-sort="parity" type="button">Plus paritaire</button><button class="sort-button" data-sort="alpha" type="button">Alphabétique</button><button class="sort-button" data-sort="size" type="button">Taille</button></div></div>
+      <label class="check-control"><input id="large-delegations" type="checkbox"><span>Seulement les délégations &gt; 50 athlètes</span></label>
+      <button id="reset" class="reset-button" type="button">Réinitialiser</button>
+    </section>
+    <section class="chart-meta"><div><span class="eyebrow">Barres divergentes</span><h2 id="chart-title">Hommes à gauche · femmes à droite</h2></div><p id="summary">— pays affichés</p></section>
+    <section class="chart-panel">
+      <div id="chart" role="img" aria-label="Barres divergentes de la répartition hommes femmes par pays"></div>
+      <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
+    </section>
+    <div class="legend"><span><i class="men"></i>Hommes</span><span><i class="women"></i>Femmes</span><span class="center-note">0 = parité parfaite</span></div>
+    <p class="source-note">Source : 120 Years of Olympic History (Kaggle). Chaque athlète est compté une seule fois par pays et par édition, même s’il participe à plusieurs épreuves. Les pourcentages sont calculés à l’intérieur de chaque délégation.</p>
+  </main>
+</body>
+</html>
