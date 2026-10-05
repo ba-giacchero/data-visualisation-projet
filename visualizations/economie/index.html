@@ -10,6 +10,7 @@
 </head>
 <body>
   <header class="masthead">
+    <a class="back-link" href="../../index.html">← Toutes les visualisations</a>
     <div class="eyebrow">Données olympiques · 1960—2016</div>
     <h1>Le poids de la richesse</h1>
     <p class="intro">La richesse d’un pays accompagne-t-elle la taille de sa délégation et ses résultats aux Jeux d’été&nbsp;?</p>
@@ -41,10 +42,15 @@
     </section>
 
     <section class="stats" aria-label="Résumé">
-      <div><span class="stat-value" id="country-count">—</span><span class="stat-label">pays affichés</span></div>
+      <div><span class="stat-value" id="country-count">—</span><span class="stat-label" id="country-label">pays affichés</span></div>
       <div><span class="stat-value" id="athlete-total">—</span><span class="stat-label">athlètes uniques</span></div>
       <div><span class="stat-value" id="medal-total">—</span><span class="stat-label">médailles comptées</span></div>
     </section>
+
+    <details id="excluded-note" class="excluded-note" hidden>
+      <summary id="excluded-summary"></summary>
+      <ul id="excluded-list"></ul>
+    </details>
 
     <section class="chart-panel">
       <div class="chart-heading">
@@ -52,11 +58,11 @@
           <div class="eyebrow">Corrélation</div>
           <h2 id="chart-title">PIB par habitant et taille des délégations</h2>
         </div>
-        <p class="chart-note">Échelle logarithmique à l’horizontale · la taille des bulles représente la population</p>
+        <p class="chart-note">Échelle logarithmique à l’horizontale · la taille des bulles représente la population · Ctrl/⌘ + molette pour zoomer, glisser pour se déplacer</p>
       </div>
       <div id="chart" role="img" aria-label="Nuage de points du PIB par habitant et des délégations olympiques"></div>
       <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
-      <p class="source-note">Sources : 120 Years of Olympic History, PIB par habitant et indicateurs démographiques WDI. La population provient de <em>wdi_wide.csv</em> ; le ratio est exprimé en athlètes par million d’habitants.</p>
+      <p class="source-note">Sources : 120 Years of Olympic History (Jeux d’été) ; PIB par habitant en dollars courants (Banque mondiale, NY.GDP.PCAP.CD) ; population annuelle (Banque mondiale, SP.POP.TOTL) ; continents dérivés des régions de la Banque mondiale. Les athlètes sont comptés une fois par pays et par édition ; une médaille d’équipe compte pour une. Le ratio est exprimé en athlètes par million d’habitants.</p>
     </section>
   </main>
 </body>
