@@ -1,209 +1,229 @@
-const OLYMPIC_FILE = '../../120 years of Olympic history/athlete_events.csv';
-const NOC_FILE = '../../120 years of Olympic history/noc_regions.csv';
-const GDP_FILE = '../../Global GDP-PIB per Capita Dataset (1960-present)/pib_per_capita_countries_dataset.csv';
-const POPULATION_FILE = '../../Demographic data/wdi_wide.csv';
+// Données préparées par prep/build_data.py (jointures NOC → ISO3, PIB, population, continents).
+const DATA_FILE = 'data/economie.json';
 
-const state = { year: 2016, metric: 'athletes', continents: new Set(), search: '' };
-const continentNames = ['Afrique', 'Amériques', 'Asie', 'Europe', 'Océanie'];
-const continentColors = { Afrique: '#d27b45', Amériques: '#287c78', Asie: '#be5c49', Europe: '#526c9f', Océanie: '#b58b2b', 'Inconnu': '#87918a' };
-const continentMap = { Africa: 'Afrique', Americas: 'Amériques', Asia: 'Asie', Europe: 'Europe', Oceania: 'Océanie' };
+const state = { year: 2016, metric: 'athletes', hiddenContinents: new Set(), search: '' };
+const continentColors = { Afrique: '#d27b45', Amériques: '#287c78', Asie: '#be5c49', Europe: '#526c9f', Océanie: '#b58b2b' };
+const metricLabels = {
+  athletes: { title: 'PIB par habitant et taille des délégations', axis: 'Nombre d’athlètes uniques' },
+  medals: { title: 'PIB par habitant et médailles comptées', axis: 'Nombre de médailles' }
+};
 
 const formatNumber = d3.format(',');
 const formatMoney = value => value >= 1000 ? `$${d3.format(',.0f')(value)}` : `$${d3.format('.2f')(value)}`;
-const clean = value => value && value !== 'NA' ? value : null;
-const normalizeCountryName = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const populationAliases = {
-  'greatbritain': 'unitedkingdom',
-  'russianempire': 'russianfederation',
-  'russia': 'russianfederation',
-  'southkorea': 'korearep',
-  'northkorea': 'koreademocraticpeoplesrep',
-  'iran': 'iranislamicrep',
-  'venezuela': 'venezuelarb',
-  'bolivia': 'boliviaplurinationalstateof',
-  'tanzania': 'tanzania',
-  'moldova': 'moldovarep'
-};
+const formatGdpTick = d => `$${d3.format('.2s')(d)}`;
+const normalizeText = value => String(value || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const plural = (count, singular, pluralForm = `${singular}s`) => `${formatNumber(count)} ${count > 1 ? pluralForm : singular}`;
 
-function normalizeContinent(region) {
-  if (!region) return 'Inconnu';
-  const normalized = region.trim();
-  const broadRegion = normalized.toLowerCase();
-  if (continentMap[normalized]) return continentMap[normalized];
-  if (broadRegion.includes('africa') || broadRegion.includes('afrique') || broadRegion.includes('áfrica')) return 'Afrique';
-  if (broadRegion.includes('europe') || broadRegion.includes('europa')) return 'Europe';
-  if (broadRegion.includes('asia') || broadRegion.includes('asie')) return 'Asie';
-  if (broadRegion.includes('america') || broadRegion.includes('amérique') || broadRegion.includes('américa')) return 'Amériques';
-  if (broadRegion.includes('oceania') || broadRegion.includes('pacific') || broadRegion.includes('océanie')) return 'Océanie';
-  return 'Inconnu';
-}
-
-function uniqueMedalKey(row) {
-  return `${row.NOC}|${row.Event}|${row.Medal}`;
-}
-
-function aggregate(athletes, nocs, gdpRows, populationRows) {
-  const nocLookup = new Map(nocs.map(row => [row.NOC, { name: row.region || row.NOC, continent: normalizeContinent(row.region) }]));
-  const rowsByCountryYear = new Map();
-  const athleteKeys = new Set();
-  const medalKeys = new Set();
-
-  athletes.filter(row => row.Season === 'Summer' && +row.Year >= 1960 && +row.Year <= 2016).forEach(row => {
-    const year = +row.Year;
-    const key = `${year}|${row.NOC}`;
-    if (!rowsByCountryYear.has(key)) rowsByCountryYear.set(key, { year, noc: row.NOC, athleteKeys: new Set(), medalKeys: new Set() });
-    const group = rowsByCountryYear.get(key);
-    const athleteKey = `${row.NOC}|${row.ID}`;
-    group.athleteKeys.add(athleteKey);
-    athleteKeys.add(`${year}|${athleteKey}`);
-    const medal = clean(row.Medal);
-    if (medal) {
-      const medalKey = uniqueMedalKey(row);
-      group.medalKeys.add(medalKey);
-      medalKeys.add(`${year}|${medalKey}`);
-    }
-  });
-
-  const gdpLookup = new Map();
-  gdpRows.filter(row => row.indicator_code === 'NY.GDP.PCAP.CD').forEach(row => {
-    const value = +String(row.gdp_per_capita).replace(',', '.');
-    if (value > 0) gdpLookup.set(`${row.year}|${row.country_code}`, {
-      value,
-      continent: normalizeContinent(row.region)
-    });
-  });
-
-  const populationLookup = new Map();
-  populationRows.forEach(row => {
-    const population = +String(row.Population).replace(/,/g, '');
-    if (population > 0) populationLookup.set(normalizeCountryName(row['Country Name']), population);
-  });
-
-  return { rowsByCountryYear, nocLookup, gdpLookup, populationLookup };
-}
-
-let model;
+let editions;
 let chart;
-let xScale;
-let zoomBehavior;
 
-function initialize(data) {
-  model = aggregate(data.athletes, data.nocs, data.gdpRows, data.populationRows);
-  const years = [...new Set([...model.rowsByCountryYear.values()].map(row => row.year))].sort(d3.ascending);
+function initialize(payload) {
+  editions = new Map(payload.editions.map(edition => [edition.year, edition]));
+  const years = payload.meta.years;
+  if (!editions.has(state.year)) state.year = years[years.length - 1];
+
   const yearSelect = d3.select('#year');
   yearSelect.selectAll('option').data(years).join('option').attr('value', d => d).text(d => d);
   yearSelect.property('value', state.year);
-  yearSelect.on('change', event => { state.year = +event.target.value; render(); });
+  yearSelect.on('change', event => {
+    state.year = +event.target.value;
+    render();
+    resetZoom();
+  });
 
-  d3.select('#continent-buttons').selectAll('button').data(continentNames).join('button')
-    .attr('class', 'continent-button active').attr('type', 'button').text(d => d)
+  const continentButtons = d3.select('#continent-buttons').selectAll('button').data(payload.meta.continents).join('button')
+    .attr('class', 'continent-button active').attr('type', 'button').attr('aria-pressed', 'true')
     .on('click', (event, continent) => {
-      if (state.continents.has(continent)) state.continents.delete(continent); else state.continents.add(continent);
-      d3.select(event.currentTarget).classed('active', !state.continents.has(continent));
+      if (state.hiddenContinents.has(continent)) state.hiddenContinents.delete(continent); else state.hiddenContinents.add(continent);
+      const visible = !state.hiddenContinents.has(continent);
+      d3.select(event.currentTarget).classed('active', visible).attr('aria-pressed', visible);
       render();
     });
-  d3.selectAll('.metric-button').on('click', (event) => {
+  continentButtons.append('i').attr('class', 'swatch').style('background', d => continentColors[d]);
+  continentButtons.append('span').text(d => d);
+
+  d3.selectAll('.metric-button').on('click', event => {
     state.metric = event.currentTarget.dataset.metric;
     d3.selectAll('.metric-button').classed('active', false);
     d3.select(event.currentTarget).classed('active', true);
     render();
   });
-  d3.select('#search').on('input', event => { state.search = event.target.value.trim().toLowerCase(); render(); });
+  d3.select('#search').on('input', event => { state.search = normalizeText(event.target.value); render(); });
   d3.select('#reset').on('click', () => {
-    state.year = 2016; state.metric = 'athletes'; state.continents.clear(); state.search = '';
+    state.year = 2016; state.metric = 'athletes'; state.hiddenContinents.clear(); state.search = '';
     d3.select('#year').property('value', state.year); d3.select('#search').property('value', '');
     d3.selectAll('.metric-button').classed('active', false).filter('[data-metric="athletes"]').classed('active', true);
-    d3.selectAll('.continent-button').classed('active', true); render();
+    d3.selectAll('.continent-button').classed('active', true).attr('aria-pressed', 'true');
+    render();
+    resetZoom();
   });
+
+  buildChart();
   render();
 }
 
-function currentData() {
-  const result = [];
-  for (const group of model.rowsByCountryYear.values()) {
-    if (group.year !== state.year) continue;
-    const place = model.nocLookup.get(group.noc) || { name: group.noc, continent: 'Inconnu' };
-    const gdp = model.gdpLookup.get(`${group.year}|${group.noc}`);
-    if (!gdp) continue;
-    const continent = gdp.continent === 'Inconnu' ? place.continent : gdp.continent;
-    const countryKey = normalizeCountryName(place.name);
-    const populationKey = populationAliases[countryKey] || countryKey;
-    const population = model.populationLookup.get(populationKey);
-    if (!population) continue;
-    result.push({
-      ...group, country: place.name, continent, gdp: gdp.value, population,
-      athletes: group.athleteKeys.size, medals: group.medalKeys.size
-    });
-  }
-  return result.filter(row => {
-    const continentVisible = state.continents.size === 0 || !state.continents.has(row.continent);
-    const searchVisible = !state.search || row.country.toLowerCase().includes(state.search) || row.noc.toLowerCase().includes(state.search);
-    return continentVisible && searchVisible;
-  });
+function yearData() {
+  return editions.get(state.year).countries;
+}
+
+function matchesSearch(d) {
+  return normalizeText(d.country).includes(state.search) || d.noc.toLowerCase().includes(state.search);
+}
+
+function visibleData() {
+  return yearData().filter(d => !state.hiddenContinents.has(d.continent));
 }
 
 function render() {
-  const data = currentData();
-  const allYearData = currentDataForStats();
-  updateStats(allYearData);
-  d3.select('#chart-title').text(state.metric === 'athletes' ? 'PIB par habitant et taille des délégations' : 'PIB par habitant et médailles comptées');
-  drawChart(data);
+  const data = visibleData();
+  const matches = state.search ? data.filter(matchesSearch) : null;
+  updateStats(matches || data, Boolean(matches));
+  updateExcluded(editions.get(state.year).excluded);
+  d3.select('#chart-title').text(metricLabels[state.metric].title);
+  updateChart(data, matches ? new Set(matches.map(d => d.noc)) : null);
 }
 
-function currentDataForStats() {
-  const previousSearch = state.search; const previousContinents = state.continents;
-  state.search = ''; state.continents = new Set();
-  const data = currentData();
-  state.search = previousSearch; state.continents = previousContinents;
-  return data;
-}
-
-function updateStats(data) {
+function updateStats(data, searching) {
   d3.select('#country-count').text(formatNumber(data.length));
   d3.select('#athlete-total').text(formatNumber(d3.sum(data, d => d.athletes)));
   d3.select('#medal-total').text(formatNumber(d3.sum(data, d => d.medals)));
+  d3.select('#country-label').text(searching ? 'pays en évidence' : 'pays affichés');
 }
 
-function drawChart(data) {
+function updateExcluded(excluded) {
+  const note = d3.select('#excluded-note');
+  note.property('hidden', excluded.countries === 0);
+  d3.select('#excluded-summary').text(
+    `${plural(excluded.countries, 'pays exclu', 'pays exclus')} (${plural(excluded.athletes, 'athlète')}, ${plural(excluded.medals, 'médaille')}) : données économiques indisponibles`
+  );
+  const reasons = Object.values(excluded.reasons).filter(reason => reason.countries > 0);
+  d3.select('#excluded-list').selectAll('li').data(reasons).join('li')
+    .html(reason => `<b>${reason.label}</b> — ${reason.nocs.map(r => `${r.name} (${r.noc}, ${formatNumber(r.athletes)})`).join(', ')}`);
+}
+
+// --- Graphique ---------------------------------------------------------------
+// Le squelette SVG est construit une fois (et à chaque redimensionnement) ; render() ne fait
+// que mettre à jour les domaines et la jointure, ce qui permet de conserver le zoom.
+
+function buildChart() {
   const container = document.querySelector('#chart');
   const width = Math.max(container.clientWidth, 620);
   const height = window.innerWidth < 700 ? 430 : 550;
   const margin = { top: 14, right: 28, bottom: 65, left: 72 };
+  const box = { x0: margin.left, x1: width - margin.right, y0: margin.top, y1: height - margin.bottom };
+  const previousTransform = chart ? d3.zoomTransform(chart.svg.node()) : d3.zoomIdentity;
+
   d3.select('#chart').selectAll('svg').remove();
   const svg = d3.select('#chart').append('svg').attr('viewBox', `0 0 ${width} ${height}`).attr('width', width).attr('height', height);
-  const innerWidth = width - margin.left - margin.right;
-  const innerHeight = height - margin.top - margin.bottom;
-  const plot = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
-  const maxGdp = d3.max(data, d => d.gdp) || 100000;
-  xScale = d3.scaleLog().domain([Math.max(100, d3.min(data, d => d.gdp) || 100), maxGdp * 1.12]).range([0, innerWidth]);
-  const yMax = d3.max(data, d => d[state.metric]) || 1;
-  const yScale = d3.scaleLinear().domain([0, yMax * 1.12]).nice().range([innerHeight, 0]);
-  const radius = d3.scaleSqrt().domain([0, d3.max(data, d => d.population) || 1]).range([4, 28]);
+  svg.append('defs').append('clipPath').attr('id', 'plot-clip')
+    .append('rect').attr('x', box.x0).attr('y', box.y0).attr('width', box.x1 - box.x0).attr('height', box.y1 - box.y0);
 
-  plot.append('g').attr('class', 'grid').call(d3.axisLeft(yScale).tickSize(-innerWidth).tickFormat(''));
-  plot.append('g').attr('class', 'axis x-axis').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(xScale).ticks(6, d => `$${d3.format('.2s')(d)}`));
-  plot.append('g').attr('class', 'axis').call(d3.axisLeft(yScale).ticks(6));
-  plot.append('text').attr('class', 'axis-label').attr('x', innerWidth / 2).attr('y', innerHeight + 52).attr('text-anchor', 'middle').text('PIB par habitant (USD, échelle logarithmique)');
-  plot.append('text').attr('class', 'axis-label').attr('transform', 'rotate(-90)').attr('x', -innerHeight / 2).attr('y', -51).attr('text-anchor', 'middle').text(state.metric === 'athletes' ? 'Nombre d’athlètes uniques' : 'Nombre de médailles');
+  const gridX = svg.append('g').attr('class', 'grid').attr('transform', `translate(0,${box.y1})`);
+  const gridY = svg.append('g').attr('class', 'grid').attr('transform', `translate(${box.x0},0)`);
+  const xAxis = svg.append('g').attr('class', 'axis x-axis').attr('transform', `translate(0,${box.y1})`);
+  const yAxis = svg.append('g').attr('class', 'axis y-axis').attr('transform', `translate(${box.x0},0)`);
+  svg.append('text').attr('class', 'axis-label').attr('x', (box.x0 + box.x1) / 2).attr('y', box.y1 + 52).attr('text-anchor', 'middle')
+    .text('PIB par habitant (USD, échelle logarithmique)');
+  const yLabel = svg.append('text').attr('class', 'axis-label').attr('transform', 'rotate(-90)')
+    .attr('x', -(box.y0 + box.y1) / 2).attr('y', box.x0 - 51).attr('text-anchor', 'middle');
+
+  const plot = svg.append('g').attr('clip-path', 'url(#plot-clip)');
+  plot.append('rect').attr('class', 'zoom-surface').attr('x', box.x0).attr('y', box.y0)
+    .attr('width', box.x1 - box.x0).attr('height', box.y1 - box.y0);
+  const dotsLayer = plot.append('g').attr('class', 'dots');
+  const empty = svg.append('text').attr('class', 'empty').attr('x', (box.x0 + box.x1) / 2).attr('y', (box.y0 + box.y1) / 2)
+    .attr('text-anchor', 'middle').text('Aucune donnée pour cette sélection');
+
+  const zoom = d3.zoom()
+    .scaleExtent([1, 20])
+    .extent([[box.x0, box.y0], [box.x1, box.y1]])
+    .translateExtent([[box.x0, box.y0], [box.x1, box.y1]])
+    // La molette ne zoome qu'avec Ctrl/⌘ : sinon elle fait défiler la page.
+    .filter(event => event.type === 'wheel' ? (event.ctrlKey || event.metaKey) : !event.ctrlKey && !event.button)
+    // Le facteur ×10 par défaut avec Ctrl est prévu pour le pincement du pavé tactile (petits deltas) ;
+    // on ne l'applique pas aux crans de molette, sinon Ctrl + molette zoome beaucoup trop vite.
+    .wheelDelta(event => -event.deltaY * (event.deltaMode === 1 ? 0.05 : event.deltaMode ? 1 : 0.002)
+      * (event.ctrlKey && Math.abs(event.deltaY) < 50 ? 10 : 1))
+    .on('zoom', event => positionElements(event.transform));
+
+  chart = {
+    svg, box, zoom, gridX, gridY, xAxis, yAxis, yLabel, dotsLayer, empty,
+    x: d3.scaleLog().range([box.x0, box.x1]),
+    y: d3.scaleLinear().range([box.y1, box.y0]),
+    r: d3.scaleSqrt().range([4, 28])
+  };
+  svg.call(zoom);
+  svg.call(zoom.transform, previousTransform);
+}
+
+function updateChart(data, matchedNocs) {
+  const all = yearData();
+  // Les domaines dépendent de l'édition et de la métrique, pas des filtres : les axes restent
+  // stables quand on masque un continent et la transformation de zoom garde son sens.
+  chart.x.domain([d3.min(all, d => d.gdp) / 1.25, d3.max(all, d => d.gdp) * 1.25]);
+  chart.y.domain([0, (d3.max(all, d => d[state.metric]) || 1) * 1.08]).nice();
+  chart.r.domain([0, d3.max(all, d => d.population) || 1]);
+  chart.yLabel.text(metricLabels[state.metric].axis);
 
   const tooltip = d3.select('#tooltip');
-  const dots = plot.append('g').selectAll('circle').data(data, d => d.noc).join('circle').attr('class', 'dot')
-    .attr('data-continent', d => d.continent).attr('cx', d => xScale(d.gdp)).attr('cy', d => yScale(d[state.metric])).attr('r', d => radius(d.population)).attr('fill', d => continentColors[d.continent] || continentColors.Inconnu)
-    .on('mouseenter', (event, d) => showTooltip(event, d)).on('mousemove', (event) => moveTooltip(event)).on('mouseleave', () => tooltip.classed('visible', false));
+  const transform = d3.zoomTransform(chart.svg.node());
+  const zx = transform.rescaleX(chart.x);
+  const zy = transform.rescaleY(chart.y);
+  // Population décroissante : les petites bulles sont dessinées en dernier, donc au-dessus.
+  const sorted = [...data].sort((a, b) => d3.descending(a.population, b.population));
 
-  if (!data.length) plot.append('text').attr('class', 'empty').attr('x', innerWidth / 2).attr('y', innerHeight / 2).attr('text-anchor', 'middle').text('Aucune donnée pour cette sélection');
-  zoomBehavior = d3.zoom().scaleExtent([1, 7]).translateExtent([[0, 0], [width, height]]).on('zoom', event => {
-    const transformedX = event.transform.rescaleX(xScale);
-    plot.select('.x-axis').call(d3.axisBottom(transformedX).ticks(6, d => `$${d3.format('.2s')(d)}`));
-    dots.attr('cx', d => transformedX(d.gdp));
-  });
-  svg.call(zoomBehavior);
+  chart.dotsLayer.selectAll('circle').data(sorted, d => d.noc)
+    .join(
+      enter => enter.append('circle').attr('class', 'dot')
+        .attr('cx', d => zx(d.gdp)).attr('cy', d => zy(d[state.metric])).attr('r', 0)
+        .on('mouseenter', (event, d) => showTooltip(event, d))
+        .on('mousemove', event => moveTooltip(event))
+        .on('mouseleave', () => tooltip.classed('visible', false)),
+      update => update,
+      exit => exit.remove()
+    )
+    .order()
+    .attr('data-continent', d => d.continent)
+    .style('--dot-color', d => continentColors[d.continent])
+    .classed('highlight', d => matchedNocs !== null && matchedNocs.has(d.noc))
+    .classed('dimmed', d => matchedNocs !== null && !matchedNocs.has(d.noc))
+    .transition().duration(450)
+    .attr('cx', d => zx(d.gdp))
+    .attr('cy', d => zy(d[state.metric]))
+    .attr('r', d => chart.r(d.population));
+
+  chart.empty.attr('display', data.length ? 'none' : null);
+  drawAxes(zx, zy);
+}
+
+function positionElements(transform) {
+  const zx = transform.rescaleX(chart.x);
+  const zy = transform.rescaleY(chart.y);
+  chart.dotsLayer.selectAll('circle').interrupt()
+    .attr('cx', d => zx(d.gdp)).attr('cy', d => zy(d[state.metric])).attr('r', d => chart.r(d.population));
+  drawAxes(zx, zy);
+}
+
+function drawAxes(zx, zy) {
+  const { box } = chart;
+  chart.xAxis.call(d3.axisBottom(zx).ticks(6, formatGdpTick));
+  chart.yAxis.call(d3.axisLeft(zy).ticks(6));
+  // Sur l'échelle log, ticks() renvoie aussi les subdivisions 2…9 : la grille ne garde que les graduations étiquetées.
+  const labelled = zx.tickFormat(6, formatGdpTick);
+  chart.gridX.call(d3.axisBottom(zx).tickValues(zx.ticks(6).filter(v => labelled(v) !== '')).tickSize(-(box.y1 - box.y0)).tickFormat(''));
+  chart.gridY.call(d3.axisLeft(zy).ticks(6).tickSize(-(box.x1 - box.x0)).tickFormat(''));
+}
+
+function resetZoom() {
+  const { k, x, y } = d3.zoomTransform(chart.svg.node());
+  if (k === 1 && x === 0 && y === 0) return;
+  chart.svg.transition().duration(450).call(chart.zoom.transform, d3.zoomIdentity);
 }
 
 function showTooltip(event, d) {
   const tooltip = d3.select('#tooltip');
   const ratio = d.athletes / d.population * 1000000;
-  tooltip.html(`<strong>${d.country} <span>(${d.noc})</span></strong><div class="tooltip-row"><span>PIB / habitant</span><b>${formatMoney(d.gdp)}</b></div><div class="tooltip-row"><span>Population</span><b>${formatNumber(d.population)}</b></div><div class="tooltip-row"><span>Athlètes uniques</span><b>${formatNumber(d.athletes)}</b></div><div class="tooltip-row"><span>Médailles</span><b>${formatNumber(d.medals)}</b></div><div class="tooltip-row"><span>Athlètes / million d’habitants</span><b>${ratio.toFixed(2)}</b></div>`).classed('visible', true);
+  tooltip.html(`<strong>${d.country} <span>(${d.noc})</span></strong><div class="tooltip-row"><span>Continent</span><b>${d.continent}</b></div><div class="tooltip-row"><span>PIB / habitant</span><b>${formatMoney(d.gdp)}</b></div><div class="tooltip-row"><span>Population</span><b>${formatNumber(d.population)}</b></div><div class="tooltip-row"><span>Athlètes uniques</span><b>${formatNumber(d.athletes)}</b></div><div class="tooltip-row"><span>Médailles</span><b>${formatNumber(d.medals)}</b></div><div class="tooltip-row"><span>Athlètes / million d’habitants</span><b>${ratio.toFixed(2)}</b></div>`).classed('visible', true);
   moveTooltip(event);
 }
 
@@ -214,11 +234,16 @@ function moveTooltip(event) {
   d3.select('#tooltip').style('left', `${Math.max(8, left)}px`).style('top', `${Math.max(8, top)}px`);
 }
 
-Promise.all([d3.csv(OLYMPIC_FILE), d3.csv(NOC_FILE), d3.csv(GDP_FILE), d3.csv(POPULATION_FILE)])
-  .then(([athletes, nocs, gdpRows, populationRows]) => initialize({ athletes, nocs, gdpRows, populationRows }))
+d3.json(DATA_FILE)
+  .then(initialize)
   .catch(error => {
     console.error(error);
-    d3.select('#chart').html('<p class="empty">Impossible de charger les CSV. Lancez la page avec <code>python main.py</code> depuis le dossier du projet.</p>');
+    d3.select('#chart').html('<p class="empty">Impossible de charger <code>data/economie.json</code>. Lancez la page avec <code>python main.py</code> depuis le dossier du projet.</p>');
   });
 
-window.addEventListener('resize', () => { if (model) drawChart(currentData()); });
+let resizeTimer;
+window.addEventListener('resize', () => {
+  if (!chart) return;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { buildChart(); render(); }, 150);
+});
