@@ -3,14 +3,196 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Le poids de la richesse</title>
+  <title>Le poids de la richesse | Jeux Olympiques</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-  <script src="app.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0"></script>
 </head>
 <body>
-  <a href="../../index.html">← Toutes les visualisations</a>
-  <h1>Le poids de la richesse</h1>
-  <div id="chart"></div>
+  <header class="masthead">
+    <a class="back-link" href="../../index.html">← Toutes les visualisations</a>
+    <div class="eyebrow">Données olympiques · Économie</div>
+    <h1>Le poids de la richesse</h1>
+    <p class="intro">
+      Les pays riches envoient-ils plus d’athlètes et gagnent-ils plus de médailles&nbsp;?
+      Chaque cercle est un pays lors d’une édition des Jeux, placé selon sa richesse et ses résultats.
+    </p>
+    <div class="cles">
+      <div class="cle">
+        <span class="eyebrow">Axe horizontal</span>
+        <p><strong>PIB par habitant, en échelle log.</strong>
+          Chaque graduation multiplie la richesse : de 1&nbsp;000 à 10&nbsp;000&nbsp;$ occupe la même place que de 10&nbsp;000 à 100&nbsp;000&nbsp;$.</p>
+      </div>
+      <div class="cle">
+        <span class="eyebrow">Efficacité</span>
+        <p><strong>Médailles par athlète, rapportées à la moyenne.</strong>
+          1 = dans la moyenne de l’édition, 2 = deux fois plus de médailles par athlète.</p>
+      </div>
+      <div class="cle">
+        <span class="eyebrow">Interagir</span>
+        <p><strong>Cliquez sur un cercle</strong> ou cherchez un pays pour suivre sa trajectoire depuis 1960&nbsp;; jusqu’à cinq pays à la fois.</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="controles" class="controles" aria-label="Réglages de la visualisation">
+      <div class="carte">
+        <div class="eyebrow">Compétition</div>
+        <div class="control-group">
+          <span class="etiquette" id="etiquette-jeux">Jeux</span>
+          <div class="segmente" role="radiogroup" aria-labelledby="etiquette-jeux">
+            <label><input type="radio" name="jeux" value="olympiques" checked><span>Olympiques</span></label>
+            <label><input type="radio" name="jeux" value="paralympiques"><span>Paralympiques</span></label>
+          </div>
+        </div>
+        <div class="control-group">
+          <span class="etiquette" id="etiquette-saison">Saison</span>
+          <div class="segmente" role="radiogroup" aria-labelledby="etiquette-saison">
+            <label><input type="radio" name="saison" value="ete" checked><span>Été</span></label>
+            <label><input type="radio" name="saison" value="hiver"><span>Hiver</span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="carte">
+        <div class="eyebrow">Affichage</div>
+        <div class="control-group">
+          <span class="etiquette" id="etiquette-mesure">Axe vertical</span>
+          <div class="segmente" role="radiogroup" aria-labelledby="etiquette-mesure">
+            <label><input type="radio" name="mesure" value="efficacite" checked><span>Efficacité</span></label>
+            <label><input type="radio" name="mesure" value="medailles"><span>Médailles</span></label>
+            <label><input type="radio" name="mesure" value="delegation"><span>Délégation</span></label>
+            <label><input type="radio" name="mesure" value="parHabitant"><span>Athlètes / habitant</span></label>
+          </div>
+        </div>
+        <div class="control-group">
+          <span class="etiquette" id="etiquette-taille">Taille des bulles</span>
+          <div class="segmente" role="radiogroup" aria-labelledby="etiquette-taille">
+            <label><input type="radio" name="taille" value="population" checked><span>Population</span></label>
+            <label><input type="radio" name="taille" value="athletes"><span>Athlètes</span></label>
+            <label><input type="radio" name="taille" value="medailles"><span>Médailles</span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="carte">
+        <div class="eyebrow">Édition</div>
+        <div class="control-group">
+          <div class="ligne-valeur">
+            <label for="annee" class="etiquette">Année</label>
+            <strong id="annee-valeur" class="grand-chiffre"></strong>
+            <button id="lecture" class="bouton" type="button" aria-pressed="false">▶ Lecture</button>
+          </div>
+          <input type="range" id="annee" min="0" step="1">
+        </div>
+        <div class="control-group">
+          <div class="ligne-valeur">
+            <label for="min-athletes" class="etiquette">Délégation minimale</label>
+            <span class="valeur"><strong id="min-valeur"></strong> athlètes</span>
+          </div>
+          <input type="range" id="min-athletes" min="1" max="50">
+        </div>
+      </div>
+
+      <div class="carte">
+        <div class="eyebrow">Filtres</div>
+        <div class="control-group">
+          <label for="recherche" class="etiquette">Ajouter un pays</label>
+          <input type="search" id="recherche" list="liste-pays" placeholder="Ex. Kenya, France…">
+          <datalist id="liste-pays"></datalist>
+        </div>
+        <div class="control-group">
+          <span class="etiquette" id="etiquette-continents">Continents</span>
+          <div id="filtre-continents" class="pastilles-filtre" role="group" aria-labelledby="etiquette-continents"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="etat" aria-label="Légende et sélection">
+      <div id="legende" aria-hidden="true"></div>
+      <div id="comparaison">
+        <span class="aide"></span>
+        <span class="puces"></span>
+        <button id="tout-effacer" class="bouton-texte" type="button">Tout effacer</button>
+        <span class="message" aria-live="polite"></span>
+      </div>
+      <p id="couverture" aria-live="polite"></p>
+    </section>
+
+    <section class="panneau">
+      <svg id="nuage" role="group" aria-label="Nuage de points : un cercle par pays, PIB par habitant en abscisse"></svg>
+      <p id="correlation" aria-live="polite"></p>
+    </section>
+
+    <section id="synthese" class="section">
+      <div class="eyebrow">Synthèse</div>
+      <h2 id="evolution-titre"></h2>
+      <p class="explication">
+        Corrélation de rang (Spearman) entre PIB par habitant et la mesure choisie, sur les pays affichés au PIB connu :
+        1 = les pays les plus riches ont toujours les valeurs les plus hautes, 0 = aucun lien.
+        Cliquez sur une édition pour l’afficher dans le nuage.
+      </p>
+      <div class="panneau">
+        <svg id="evolution" role="group" aria-label="Corrélation entre richesse et mesure choisie, par édition"></svg>
+      </div>
+    </section>
+
+    <section id="detail" class="section" hidden>
+      <div class="eyebrow">Trajectoires</div>
+      <div class="entete-detail">
+        <h2 id="detail-titre"></h2>
+        <button id="rejouer" class="bouton" type="button">Rejouer</button>
+        <button id="fermer" class="bouton" type="button" aria-label="Fermer la vue détail">Fermer ✕</button>
+      </div>
+      <ul id="detail-info" aria-live="polite"></ul>
+      <p id="detail-note"></p>
+      <div class="panneau">
+        <svg id="trajectoire" role="img" aria-label="Trajectoires des pays comparés"></svg>
+      </div>
+    </section>
+
+    <details id="tableau" class="section">
+      <summary id="tableau-titre">Tableau des pays affichés</summary>
+      <p class="explication">Cliquez sur un en-tête pour trier, sur un nom pour l’ajouter à la comparaison.</p>
+      <div class="defilement">
+        <table>
+          <thead><tr></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </details>
+
+    <details id="methode" class="section">
+      <summary>Méthode, sources et limites</summary>
+      <h3>Sources</h3>
+      <ul>
+        <li>Olympiques : résultats par athlète et par épreuve (<code>Olympic_Athlete_Event_Results.csv</code>), éditions d’été et d’hiver depuis 1960.</li>
+        <li>Paralympiques : tableau des participants et médailles par pays et par édition (<code>paralympic_games.csv</code>).</li>
+        <li>PIB par habitant (dollars PPA 2011) et population : Maddison Project Database 2023, choisie pour ses séries longues qui couvrent aussi les pays disparus (URSS, Yougoslavie…).</li>
+        <li>Continents : associations continentales du CIO (Afrique, Amérique, Asie, Europe, Océanie), table <code>code_continent.csv</code>.</li>
+      </ul>
+      <h3>Indicateurs</h3>
+      <ul>
+        <li><strong>Délégation</strong> : athlètes distincts (un athlète inscrit à trois épreuves compte une fois).</li>
+        <li><strong>Médailles</strong> : une médaille par épreuve, pays et couleur ; une équipe championne rapporte une seule médaille.</li>
+        <li><strong>Efficacité</strong> : (médailles ÷ athlètes du pays) ÷ (médailles ÷ athlètes de toute l’édition). Elle neutralise le nombre d’épreuves, différent d’une édition à l’autre.</li>
+        <li><strong>Athlètes par habitant</strong> : athlètes pour un million d’habitants.</li>
+        <li><strong>Corrélation</strong> : ρ de Spearman, calculée sur les rangs ; insensible aux échelles logarithmiques et aux valeurs extrêmes. Calculée sur les pays affichés (filtres appliqués) dont le PIB est connu, à partir de 8 pays.</li>
+        <li><strong>Tendance</strong> : droite des moindres carrés dans l’espace du dessin (logarithme du PIB, et de la mesure si son échelle est logarithmique).</li>
+      </ul>
+      <h3>Limites</h3>
+      <ul>
+        <li>Les micro-États et certains pays disparus n’ont pas de PIB : ils sont placés dans la bande « PIB inconnu » ; la phrase de couverture donne leur poids dans l’édition.</li>
+        <li>La source paralympique ne recense que les pays médaillés : la moyenne de l’édition, donc l’efficacité, y est surestimée. Certains effectifs y sont incohérents (plus de médailles que d’athlètes).</li>
+        <li>Les sports collectifs pèsent sur l’efficacité : tous les joueurs comptent dans la délégation, pour une seule médaille.</li>
+        <li>Les petites délégations donnent une efficacité instable (1 médaille pour 2 athlètes) : d’où le filtre de délégation minimale, fixé à 5 par défaut.</li>
+        <li>Les pays sont suivis par code ISO : RFA et Allemagne, ROC et Russie sont réunies ; l’URSS (code Maddison distinct) reste séparée de la Russie.</li>
+        <li>Corrélation ne veut pas dire causalité : la richesse va de pair avec la population, le climat (Jeux d’hiver) ou l’accueil des Jeux.</li>
+      </ul>
+    </details>
+  </main>
+
+  <div id="infobulle" role="tooltip"></div>
+  <script src="app.js"></script>
 </body>
 </html>

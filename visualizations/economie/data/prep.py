@@ -1,29 +1,37 @@
 """
 construire les deux fichiers de la visu économie
-Entrées : donnees_brutes/ + noc_iso3.csv + para_nom_iso3.csv
-Sorties : /data/olympiques.csv et /data/paralympiques.csv
-  une ligne par pays et par édition : saison, annee, pays, iso3, medailles, athletes, gdppc
+Entrées : donnees_brutes/ + tables_code_pays/noc_iso3.csv + tables_code_pays/para_nom_iso3.csv
+Sorties : olympiques.csv et paralympiques.csv, à côté de ce script
+  une ligne par pays et par édition : saison, annee, pays, nom, iso3, medailles, athletes, gdppc, pop
+Se lance depuis n'importe quel dossier : les chemins partent de l'emplacement du script.
 """
-import os
+from pathlib import Path
 import pandas as pd
 
-D = "../../../donnees_brutes"
-T = "../../../tables_code_pays"
-COLONNES = ["saison", "annee", "pays", "iso3", "medailles", "athletes", "gdppc"]
+ICI = Path(__file__).resolve().parent   # visualizations/economie/data
+RACINE = ICI.parents[2]                 # racine du projet
+D = RACINE / "donnees_brutes"
+T = RACINE / "tables_code_pays"
+COLONNES = ["saison", "annee", "pays", "nom", "iso3", "medailles", "athletes", "gdppc", "pop"]
 
-# ---------- PIB Maddison : (iso3, annee) -> gdppc ----------
-pib = pd.read_excel(f"{D}/mpd2023_web.xlsx", sheet_name="Full data")
-pib = pib.rename(columns={"countrycode": "iso3", "year": "annee"})[["iso3", "annee", "gdppc"]]
-pib = pib[(pib["annee"] >= 1960) & pib["gdppc"].notna()]
+# ---------- Maddison : (iso3, annee) -> gdppc et pop ----------
+mpd = pd.read_excel(f"{D}/mpd2023_web.xlsx", sheet_name="Full data")
+mpd = mpd.rename(columns={"countrycode": "iso3", "year": "annee"})
+mpd = mpd[mpd["annee"] >= 1960]
+pib = mpd.loc[mpd["gdppc"].notna(), ["iso3", "annee", "gdppc"]]
+# Population : en milliers dans Maddison, convertie en habitants
+pop = mpd.loc[mpd["pop"].notna(), ["iso3", "annee", "pop"]]
+pop["pop"] = (pop["pop"] * 1000).round().astype("Int64")
 
 
 def ajouter_iso3_et_pib(df, table, cle):
-    """Ajoute iso3 (via la table de correspondance) puis gdppc (via Maddison)."""
+    """Ajoute iso3 (via la table de correspondance) puis gdppc et pop (via Maddison)."""
     df["iso3"] = df["pays"].map(dict(zip(table[cle], table["iso3"])))
     manquants = df.loc[df["iso3"].isna(), "pays"].unique()
     if len(manquants):
         raise SystemExit(f"Pays absents de la table de correspondance : {list(manquants)}")
-    return df.merge(pib, on=["iso3", "annee"], how="left")
+    return (df.merge(pib, on=["iso3", "annee"], how="left")
+              .merge(pop, on=["iso3", "annee"], how="left"))
 
 
 # ---------- Olympiques : compter par pays et par édition ----------
@@ -47,6 +55,8 @@ medailles = (jo[jo["medal"].notna()]
 olymp = pd.concat([athletes, medailles], axis=1).fillna({"medailles": 0}).reset_index()
 olymp["medailles"] = olymp["medailles"].astype(int)
 olymp = ajouter_iso3_et_pib(olymp, pd.read_csv(f"{T}/noc_iso3.csv"), "noc")
+noms = pd.read_csv(f"{T}/noc_iso3.csv")
+olymp["nom"] = olymp["pays"].map(dict(zip(noms["noc"], noms["nom_cio"])))
 
 # ---------- Paralympiques : déjà agrégé, on additionne ----------
 para = pd.read_csv(f"{D}/paralympic_games.csv")
@@ -55,11 +65,11 @@ para["medailles"] = para["gold"] + para["silver"] + para["bronze"]
 para["athletes"] = para["participants_men"] + para["participants_women"]
 para = para.rename(columns={"year": "annee", "country": "pays"})
 para = ajouter_iso3_et_pib(para, pd.read_csv(f"{T}/para_nom_iso3.csv"), "country")
+para["nom"] = para["pays"]
 
 # ---------- Écriture ----------
-os.makedirs("../data", exist_ok=True)
-olymp[COLONNES].sort_values(groupe).to_csv("olympiques.csv", index=False)
-para[COLONNES].sort_values(groupe).to_csv("paralympiques.csv", index=False)
+olymp[COLONNES].sort_values(groupe).to_csv(ICI / "olympiques.csv", index=False)
+para[COLONNES].sort_values(groupe).to_csv(ICI / "paralympiques.csv", index=False)
 
 
 print("\nCouverture PIB : % des médailles des pays ayant un PIB, par édition")

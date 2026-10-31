@@ -1,7 +1,7 @@
 year,games_type,host_country,host_city,competitions,sports,disabilities,country_rank,country,participants_men,participants_women,gold,silver,bronze
 1960,Summer,Italy,Rome,113,8,Spinal injury,1.0,Italy,23,4,29,28,23
 1960,Summer,Italy,Rome,113,8,Spinal injury,2.0,Great Britain,29,13,20,15,20
-1960,Summer,Italy,Rome,113,8,Spinal injury,3.0,Germany,7,2,15,6,9
+1960,Summer,Italy,Rome,113,8,Spinal injury,3.0,Germany,11,5,15,6,9
 1960,Summer,Italy,Rome,113,8,Spinal injury,4.0,Austria,12,7,11,8,11
 1960,Summer,Italy,Rome,113,8,Spinal injury,5.0,United States of America,23,0,11,7,7
 1960,Summer,Italy,Rome,113,8,Spinal injury,6.0,Norway,7,4,9,3,4
@@ -966,7 +966,7 @@ year,games_type,host_country,host_city,competitions,sports,disabilities,country_
 2020,Summer,Japan,Tokyo,539,22,"Spinal injury, Amputee, Vision Impairment, Cerebral Palsy, Les Autres, Intellectual Disability",1.0,People's Republic of China,116,132,96,60,51
 2020,Summer,Japan,Tokyo,539,22,"Spinal injury, Amputee, Vision Impairment, Cerebral Palsy, Les Autres, Intellectual Disability",2.0,Great Britain,120,91,41,38,45
 2020,Summer,Japan,Tokyo,539,22,"Spinal injury, Amputee, Vision Impairment, Cerebral Palsy, Les Autres, Intellectual Disability",3.0,United States of America,116,119,37,36,31
-2020,Summer,Japan,Tokyo,539,22,"Spinal injury, Amputee, Vision Impairment, Cerebral Palsy, Les Autres, Intellectual Disability",4.0,RPC,5,2,36,33,49
+2020,Summer,Japan,Tokyo,539,22,"Spinal injury, Amputee, Vision Impairment, Cerebral Palsy, Les Autres, Intellectual Disability",4.0,RPC,114,137,36,33,49
 2020,Summer,Japan,Tokyo,539,22,"Spinal injury, Amputee, Vision Impairment, Cerebral Palsy, Les Autres, Intellectual Disability",5.0,Netherlands,29,41,25,17,17
 2020,Summer,Japan,Tokyo,539,22,"Spinal injury, Amputee, Vision Impairment, Cerebral Palsy, Les Autres, Intellectual Disability",6.0,Ukraine,79,58,24,47,27
 2020,Summer,Japan,Tokyo,539,22,"Spinal injury, Amputee, Vision Impairment, Cerebral Palsy, Les Autres, Intellectual Disability",7.0,Brazil,138,95,22,20,30
