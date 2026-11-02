@@ -9,7 +9,6 @@
 </head>
 <body>
   <header class="masthead">
-    <a class="back-link" href="../../index.html">← Toutes les visualisations</a>
     <div class="eyebrow">Données olympiques · Économie</div>
     <h1>Le poids de la richesse</h1>
     <p class="intro">
@@ -81,6 +80,7 @@
           <div class="ligne-valeur">
             <label for="annee" class="etiquette">Année</label>
             <strong id="annee-valeur" class="grand-chiffre"></strong>
+            <span id="hote-lien"></span>
             <button id="lecture" class="bouton" type="button" aria-pressed="false">▶ Lecture</button>
           </div>
           <input type="range" id="annee" min="0" step="1">
@@ -193,6 +193,6 @@
   </main>
 
   <div id="infobulle" role="tooltip"></div>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>

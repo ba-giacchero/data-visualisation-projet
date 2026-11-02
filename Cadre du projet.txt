@@ -91,12 +91,7 @@ Interactivité :
 Sélecteur de sport : Un menu permettant de choisir un sport spécifique (ex: Escrime, Athlétisme). La carte se recolore instantanément pour ne montrer que la densité d'athlètes envoyés dans cette discipline.
 Drill-down (Plongée dans les données) : Au clic sur un pays (ex: la Chine), une petite fenêtre (ou un graphique circulaire à côté) s'ouvre pour afficher la répartition interne de ses athlètes par sport.
 
-4. Le Bilan de la Parité (Analyse du Genre)
-Paris 2024 s'est annoncé comme les premiers Jeux Olympiques paritaires. Cette visualisation permet de vérifier si cette parité se retrouve au sein de chaque pays.
-Visualisation : Un graphique à barres empilées divergentes (Diverging stacked bar chart). Le centre (0) représente la parité parfaite, les barres partent vers la gauche pour les hommes et vers la droite pour les femmes.
-Interactivité :
-Tri dynamique : Boutons pour trier le graphique : "Du plus paritaire au moins paritaire", "Par ordre alphabétique", ou "Par taille de délégation".
-Filtres conditionnels : Une case à cocher "Afficher uniquement les pays avec une délégation > 50 athlètes" pour éviter que les micro-délégations de 2 personnes ne faussent la lecture de la parité.
+4. 'Avantage à Domicile (L'Effet "Pays Hôte")Vous avez déjà la donnée de la "ville d’accueil" (City) dans votre dataset Kaggle. Il suffit de faire correspondre ces villes à leur pays.   Concept : Organiser les Jeux Olympiques booste-t-il les performances d'un pays ?Visualisation : Un Event Study Chart (Graphique avant/après). L'axe X central est l'année "T" (l'année où le pays est l'hôte). On regarde les performances du pays à T-2, T-1, T, T+1, T+2 (soit les éditions précédentes et suivantes).Interactivité :Un menu déroulant pour sélectionner un pays hôte historique (ex: Royaume-Uni 2012, Chine 2008).La visualisation montre instantanément comment la taille de leur délégation et leur récolte de médailles ont explosé l'année de l'accueil, puis sont redescendues ensuite. Cela intéresserait énormément votre persona "Journaliste de Données".   L'une de ces trois pistes vous inspire-t-elle pour combler ce vide et redonner une tâche claire au 4ème membre de votre groupe ?
 
 
 

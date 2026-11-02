@@ -43,3 +43,21 @@ svg { display:block; min-width:700px; }
 .legend-line.selected { background:var(--accent); opacity:1; }.legend-line.brushed { background:var(--teal); opacity:1; }.legend-line.muted { background:#87918a; }
 .source-note { max-width:800px; margin:0 0 46px; }
 @media(max-width:700px) { .masthead,main { padding-left:18px; padding-right:18px; } .masthead { padding-top:28px; } .chart-meta { align-items:start; flex-direction:column; } .chart-meta p { text-align:left; } .controls { gap:15px; } }
+
+/* Liens contextuels façon Wikipédia */
+.wiki-link { color: inherit; text-decoration: none; border-bottom: 1.5px dashed var(--accent); cursor: pointer; transition: color .15s, background-color .15s, border-color .15s; padding: 0 2px; border-radius: 2px; }
+.wiki-link:hover { color: var(--accent); background: rgba(224, 90, 63, .08); border-bottom-style: solid; }
+.wiki-badge { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; padding: 2px 9px; border: 1px dashed var(--accent); border-radius: 999px; background: var(--panel); color: var(--ink); font: 500 12px 'DM Sans', sans-serif; text-decoration: none; transition: background .15s, color .15s, border-color .15s; }
+.wiki-badge:hover { background: var(--accent); color: #fff; border-style: solid; }
+.wiki-narrative { margin: 14px 0 4px; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--panel); color: var(--muted); font-size: 13.5px; line-height: 1.6; }
+.wiki-narrative strong { color: var(--ink); }
+.sport-line { cursor: pointer; }
+.wiki-preview { position: fixed; z-index: 20; pointer-events: none; display: none; width: 280px; padding: 13px 15px; border: 1px solid var(--ink); background: var(--panel); color: var(--ink); box-shadow: 6px 6px 0 var(--ink); font-family: 'DM Sans', sans-serif; }
+.wiki-preview.visible { display: block; }
+.wiki-preview-eyebrow { color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 4px; }
+.wiki-preview-title { font: 600 15px 'Space Grotesk', sans-serif; color: var(--ink); margin-bottom: 6px; }
+.wiki-preview-body { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.wiki-preview-metrics { display: grid; gap: 4px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 11.5px; }
+.wiki-preview-row { display: flex; justify-content: space-between; gap: 10px; }
+.wiki-preview-row span { color: var(--muted); }
+.wiki-preview-row b { color: var(--ink); font-weight: 600; }

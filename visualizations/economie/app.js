@@ -1,3 +1,4 @@
+import { getHostByYear, getHostsByNocOrIso, bindWikiPreviews, wikiLinkHtml } from '../shared-links.js';
 // Le poids de la richesse
 // Vue d'ensemble : nuage PIB/hab (x) et une mesure olympique (y), un cercle par pays.
 // Synthèse : corrélation richesse-mesure par édition. Vue détail : trajectoires des pays comparés.
@@ -97,6 +98,32 @@ const tableContinents = d3.csv("../../tables_code_pays/code_continent.csv")
   .then(lignes => new Map(lignes.map(d => [d.code, d.continent])));
 let requete = 0; // seule la dernière demande de fichier est affichée
 
+
+let urlDejaAppliquee = false;
+function appliquerParametresUrl() {
+  if (urlDejaAppliquee) return;
+  urlDejaAppliquee = true;
+  const params = new URLSearchParams(window.location.search);
+  const y = +params.get("year") || +params.get("annee");
+  if (y) etat.annee = y;
+  const m = params.get("mesure");
+  if (m && MESURES[m]) {
+    etat.mesure = m;
+    d3.selectAll("input[name=mesure]").property("checked", function() { return this.value === m; });
+  }
+  const c = params.get("country") || params.get("noc") || params.get("iso3");
+  if (c) {
+    const code = c.toUpperCase();
+    const match = donnees.find(d => d.saison === etat.saison && (d.pays === code || d.iso3 === code || d.nom.toLowerCase() === c.toLowerCase()));
+    if (match && match.iso3 !== "exclu") {
+      const k = cle(match);
+      if (!etat.selections.some(s => s.cle === k)) {
+        etat.selections.push({ cle: k, nom: match.nom, couleur: COULEURS[0] });
+      }
+    }
+  }
+}
+
 function charger() {
   const numero = ++requete;
   Promise.all([d3.csv(`data/${etat.jeux}.csv`, d3.autoType), tableContinents]).then(([lignes, continents]) => {
@@ -105,6 +132,7 @@ function charger() {
     for (const d of lignes) d.continent = continents.get(cle(d));
     donnees = calculerIndicateurs(lignes);
     construireEchelles();
+    appliquerParametresUrl();
     majCurseurAnnee();
     majRecherche();
     majLegende();
@@ -389,15 +417,39 @@ function ecrireCouverture(pays, visibles) {
   const part = cle => Math.round(100 * d3.sum(avecPib, d => d[cle]) / d3.sum(pays, d => d[cle]));
   const nonPlaces = pays.filter(d => !defini(d)).length;
   const masques = pays.length - visibles.length - nonPlaces;
-  d3.select("#couverture").text(
-    `${visibles.length} pays affichés` +
+  const totalAthletes = d3.sum(visibles, d => d.athletes);
+  const peutLier = etat.jeux === "olympiques" && etat.saison === "ete" && etat.annee <= 2016;
+  const lienGeo = peutLier
+    ? wikiLinkHtml({
+        href: `../geographie/index.html?year=${etat.annee}`,
+        text: `${visibles.length} pays affichés`,
+        eyebrow: "La carte des groupes sportifs",
+        title: `Géographie des délégations · ${etat.annee}`,
+        body: `Explorer la répartition mondiale des ${nombre(totalAthletes)} athlètes engagés en ${etat.annee} par discipline.`,
+        metrics: [["Pays affichés", `${visibles.length} nations`], ["Athlètes engagés", `${nombre(totalAthletes)} athlètes`]]
+      })
+    : `${visibles.length} pays affichés`;
+  const lienAnat = peutLier
+    ? wikiLinkHtml({
+        href: `../anatomie/index.html?year=${etat.annee}`,
+        text: `${part("athletes")} % des athlètes de l’édition`,
+        eyebrow: "L’anatomie de l’élite",
+        title: `Profils morphologiques · ${etat.annee}`,
+        body: `Comparer l’âge, la taille et le poids médians des athlètes par discipline lors des Jeux de ${etat.annee}.`,
+        metrics: [["Édition", `${etat.annee}`], ["Couverture PIB", `${part("athletes")} % des athlètes`]]
+      })
+    : `${part("athletes")} % des athlètes de l’édition`;
+
+  d3.select("#couverture").html(
+    `${lienGeo}` +
     (masques > 0 ? ` (${masques} masqués par les filtres)` : "") +
     (nonPlaces ? `, ${nonPlaces} sans population connue non placés` : "") +
     `. Les pays au PIB connu représentent ${part("medailles")} % des médailles ` +
-    `et ${part("athletes")} % des athlètes de l’édition.` +
+    `et ${lienAnat}.` +
     (etat.jeux === "paralympiques"
       ? " Source paralympique : seuls les pays médaillés sont recensés, la moyenne de l’édition est donc surestimée."
       : ""));
+  bindWikiPreviews(document.querySelector("#couverture"));
 }
 
 // Droite de tendance et corrélation de l'édition affichée (Correlate)
@@ -512,6 +564,16 @@ function majTableau(lignes) {
     .each(function (d) {
       d3.select(this).selectAll("td").data(COLONNES_TABLEAU).each(function (c) {
         const td = d3.select(this);
+        if (c.id === "athletes" && etat.jeux === "olympiques" && etat.saison === "ete" && d.annee <= 2016) {
+          return td.html(wikiLinkHtml({
+            href: `../geographie/index.html?year=${d.annee}&noc=${d.pays}`,
+            text: c.texte(d),
+            eyebrow: "La carte des groupes sportifs",
+            title: `${d.nom} · ${d.annee}`,
+            body: `Voir la répartition par sport des ${c.texte(d)} athlètes de ${d.nom} sur la carte mondiale.`,
+            metrics: [["Délégation", `${c.texte(d)} athlètes`], ["Médailles", `${nombre(d.medailles)}`]]
+          }));
+        }
         if (c.id !== "nom") return td.text(c.texte(d));
         // Nom cliquable : ajoute ou retire le pays de la comparaison
         td.html("");
@@ -521,6 +583,7 @@ function majTableau(lignes) {
           .on("click", () => basculerSelection(cle(d), d.nom));
       });
     });
+  bindWikiPreviews(document.querySelector('#tableau'));
 }
 
 // ---------- Légende ----------
@@ -705,14 +768,13 @@ function appellations(presentes) {
   return groupes.length > 1 ? groupes.map(g => `${g.nom} (${plages(g.annees)})`) : [];
 }
 
-// Résumé d'un pays sous le titre de la vue détail
-function resume({ serie, presentes, tracables }) {
+// Résumé d'un pays sous le titre de la vue détail (avec liens contextuels façon Wikipédia)
+function resume({ selection, serie, presentes, tracables }) {
   if (!presentes.length) return "aucune donnée dans ces Jeux.";
   const infos = [];
   const noms = appellations(presentes);
   if (noms.length) infos.push(`réunit ${noms.join(", ")}.`);
   infos.push(`${tracables.length} éditions sur ${presentes.length} avec un PIB connu.`);
-  // Absences entre la première et la dernière participation (avant, le pays peut ne pas exister)
   const [premiere, derniere] = d3.extent(presentes, d => d.annee);
   if (premiere > annees[0]) infos.push(`Première participation : ${premiere}.`);
   if (derniere < annees[annees.length - 1]) infos.push(`Dernière participation : ${derniere}.`);
@@ -720,6 +782,39 @@ function resume({ serie, presentes, tracables }) {
   if (absences.length) infos.push(`Absent : ${plages(absences)}.`);
   const boycotts = absences.filter(boycott).map(a => `${a} (${boycott(a)})`);
   if (boycotts.length) infos.push(`Années de boycott parmi ces absences : ${boycotts.join(", ")}.`);
+
+  if (etat.jeux === "olympiques" && etat.saison === "ete") {
+    const cibleAnnee = Math.min(etat.annee, 2016);
+    const courant = presentes.find(d => d.annee === cibleAnnee) || presentes[presentes.length - 1];
+    if (courant && courant.annee <= 2016) {
+      const geoLien = wikiLinkHtml({
+        href: `../geographie/index.html?year=${courant.annee}&noc=${courant.pays}`,
+        text: `${nombre(courant.athletes)} athlètes en ${courant.annee}`,
+        eyebrow: "La carte des groupes sportifs",
+        title: `Délégation de ${selection.nom} (${courant.annee})`,
+        body: `Explorer la répartition par discipline sportive des ${nombre(courant.athletes)} athlètes de ${selection.nom}.`,
+        metrics: [
+          ["Athlètes engagés", `${nombre(courant.athletes)}`],
+          ["Médailles obtenues", `${nombre(courant.medailles)}`],
+          ["Efficacité", `${decimal(courant.efficacite)} × la moyenne`]
+        ]
+      });
+      infos.push(`Délégation : ${geoLien}.`);
+    }
+    const accueils = getHostsByNocOrIso(selection.cle);
+    if (accueils.length) {
+      const liensHote = accueils.map(h => wikiLinkHtml({
+        href: `../domicile/index.html?year=${h.year}`,
+        text: `${h.city} ${h.year}`,
+        eyebrow: "Avantage à domicile",
+        title: `${h.country} · ${h.city} ${h.year}`,
+        body: `Observer l’effet pays hôte sur la délégation et les médailles de ${h.country} autour de ${h.year}.`,
+        metrics: [["Ville hôte", h.city], ["Année T", `${h.year}`]]
+      })).join(", ");
+      infos.push(`Pays hôte : ${liensHote}.`);
+    }
+  }
+
   if (!tracables.length) {
     infos.push("Sans PIB connu, pas de trajectoire. Efficacité par édition : " +
       presentes.map(d => `${d.annee} : ${decimal(d.efficacite)}`).join(" ; ") + ".");
@@ -760,7 +855,8 @@ function afficherDetail() {
     })
     .call(li => li.select(".pastille").style("background", p => p.selection.couleur))
     .call(li => li.select("strong").text(p => `${p.selection.nom} : `))
-    .call(li => li.select(".texte").text(resume));
+    .call(li => li.select(".texte").html(resume));
+  bindWikiPreviews(document.querySelector("#detail-info"));
 
   // Pointillés seulement si un trou tombe entre deux éditions tracées
   const aDesTrous = pays.some(p => p.tracables.length > 1 &&
@@ -873,6 +969,21 @@ function majCurseurAnnee() {
 function afficherAnnee() {
   d3.select("#annee").property("value", annees.indexOf(etat.annee)).attr("aria-valuetext", etat.annee);
   d3.select("#annee-valeur").text(etat.annee);
+  const hote = etat.jeux === "olympiques" && etat.saison === "ete" ? getHostByYear(etat.annee) : null;
+  if (hote) {
+    d3.select("#hote-lien").html(wikiLinkHtml({
+      href: `../domicile/index.html?year=${hote.year}`,
+      text: `${hote.city}`,
+      className: "wiki-badge",
+      eyebrow: "Avantage à domicile",
+      title: `${hote.country} · ${hote.city} ${hote.year}`,
+      body: `Voir comment l’accueil des Jeux de ${hote.year} a boosté la délégation et les médailles de ${hote.country}.`,
+      metrics: [["Ville hôte", hote.city], ["Pays hôte", `${hote.country} (${hote.noc})`]]
+    }));
+    bindWikiPreviews(document.querySelector("#hote-lien"));
+  } else {
+    d3.select("#hote-lien").html("");
+  }
 }
 
 function changerAnnee(annee) {
