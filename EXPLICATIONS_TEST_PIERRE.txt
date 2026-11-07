@@ -1,0 +1,112 @@
+AU-DELÀ DES MÉDAILLES — BRANCHE TEST-PIERRE
+Base : main, commit 0f747db (« Intercations entre les visualisations »).
+
+1. CE QUI A CHANGÉ
+
+La démonstration s'ouvre à la racine, sur une seule page. Les quatre vues
+D3 ont chacune une question écrite, une vue d'ensemble, un constat calculé
+et un panneau de détail. La source, la saison, l'édition et le sport sont
+coordonnés. Le pays suivi est mis en évidence, avec le monde comme contexte.
+L'anatomie actuelle reste mondiale : le choix d'un pays ne la filtre pas.
+
+01 — La richesse fait-elle gagner ?
+     Nuage PIB/habitant et médailles, délégation ou médailles/100 inscrits.
+     Détail : chiffres par pays et trajectoire. La corrélation de rang est
+     descriptive ; la taille des délégations et les disciplines comptent.
+
+02 — À chaque pays ses disciplines ?
+     Matrice pays × sports à la place de la carte d'effectifs bruts.
+     L'indice compare le poids d'un sport dans les médailles du pays à son
+     poids mondial. Le volume brut reste accessible : ×8 sur une médaille
+     n'a pas le même sens que ×8 sur vingt.
+
+03 — Un sport, un seul gabarit ?
+     Boîtes de distribution (taille, poids, âge) par sexe et discipline,
+     avec détail par épreuve, effectifs et comparaison avec les médaillés.
+     Les catégories de poids restent séparées : une médiane de boxe
+     mélange des groupes différents et peut masquer la dispersion.
+
+04 — Accueillir les Jeux change-t-il la donne ?
+     Part mondiale des médailles avant, pendant et après l'accueil,
+     rapportée à la moyenne antérieure de l'hôte. Les absences ne deviennent
+     pas des zéros. C'est une comparaison descriptive, pas un effet causal.
+
+Les vues utilisent un modèle commun issu des résultats et biographies
+Olympedia et des données économiques annuelles Maddison. Le dataset Kaggle
+historique est sélectionnable séparément. Un JSON normalisé est exportable
+et importable. Les résultats Olympedia fournis couvrent les JO d'été de 1960
+à 2020 et ceux d'hiver de 1960 à 2022. Paris 2024 figure au catalogue, mais
+les résultats correspondants ne sont pas dans le dépôt. Les anciennes pages
+autonomes restent disponibles comme références.
+
+2. LE PROBLÈME DE PERTINENCE DE LA VUE 3
+
+La nouvelle vue répond à une question anatomique utile : que cache un
+profil moyen ? Mais elle reste au niveau des athlètes et des épreuves. Elle
+ne dit pas pourquoi une nation réussit dans un sport, et il ne faut pas
+déduire un profil « idéal » en comparant inscrits et médaillés. Les tailles
+et les poids biographiques ne sont pas toujours renseignés ni datés.
+
+La question collective porte sur les nations olympiques. Si les trois
+autres vues restent centrées sur leurs ressources et leurs résultats, la
+vue 3 doit soit prendre le pays comme unité de comparaison, soit changer
+complètement de sujet. Les deux pistes ci-dessous sont à discuter : elles
+ne sont pas implémentées sur cette branche.
+
+3. OPTION A — REMPLACER L'ANATOMIE PAR LA PARTICIPATION FÉMININE
+
+Question proposée : « La part des femmes dans les délégations a-t-elle
+progressé au même rythme selon les nations ? »
+
+Vue d'ensemble : courbes par pays sélectionné et repère mondial, avec une
+échelle commune et les effectifs disponibles. Détail : pour un pays et une
+édition, décomposer les inscrits par discipline et par sexe. Une délégation
+de deux personnes ne doit pas se lire comme une délégation de deux cents.
+Les changements de programme et l'ouverture d'épreuves féminines font partie
+de l'interprétation. Cette piste complète la spécialisation par les médailles
+en étudiant qui participe, plutôt que ce que le pays gagne.
+
+C'est l'option recommandée si l'objectif est un récit plus homogène sur
+les nations, avec une vue démographique accessible au grand public.
+
+4. OPTION B — RELIER GABARITS ET RÉSULTATS PAR PAYS
+
+Question proposée : « Dans un même tournoi de basket ou de volley, les
+équipes nationales dont les athlètes sont plus grands obtiennent-elles
+de meilleurs résultats ? »
+
+Vue d'ensemble : un point par équipe nationale et tournoi, taille médiane
+des joueurs mesurés en X et rang final en Y (1 = meilleur). Les filtres
+séparent basket et volley, hommes et femmes, et éditions. Pour l'analyse
+principale, comparer les équipes d'un même tournoi. La corrélation de rang
+est utile si le classement complet est disponible et l'effectif de pays
+suffisant. Sinon, comparer explicitement médaillés et non-médaillés, sans
+présenter ce contraste comme un classement complet.
+
+Détail : boîte des tailles de l'équipe, nombre de joueurs mesurés sur
+l'effectif, résultat et comparaison au tournoi. Partir du NOC du résultat
+et dédupliquer les joueurs d'une équipe. La médiane doit porter sur les
+joueurs du sport et du tournoi, pas sur l'ensemble des athlètes du pays.
+Le classement doit venir du résultat de l'équipe, pas d'un comptage
+des médailles par joueur.
+
+Premier test conseillé : vérifier les rangs et la couverture des tailles
+pour basket et volley à Rio 2016 et Tokyo 2020. Fixer un seuil de couverture
+avant de comparer, afficher les exclusions et vérifier si le constat tient
+sur les deux éditions. Les rôles, le jeu collectif, la qualification et
+les ressources peuvent expliquer les écarts. La corrélation ne prouve pas
+que la taille cause la performance ni qu'elle prédit le succès individuel.
+
+Si les données passent ce test, cette piste garde l'angle morphologique
+tout en répondant à une question sur les nations. Sinon, retenir l'option A.
+
+5. REPRODUIRE ET POURSUIVRE
+
+Démo : python3 main.py, puis http://localhost:8000
+Préparation des exports : python3 scripts/build_dashboard.py
+Vérifications : npm test
+Audit détaillé et plan du rapport : docs/AUDIT_ET_RAPPORT.md
+Contrat du dataset importable : docs/DATASET.md
+
+À confirmer en équipe : le sujet définitif de la vue 3, la provenance
+exacte de l'extraction locale et la validation du dataset par Aline ou Marco.

@@ -1,0 +1,10 @@
+{
+  "name": "au-dela-des-medailles",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 main.py",
+    "prepare:data": "python3 scripts/build_dashboard.py",
+    "test": "node --test scripts/dashboard.test.mjs"
+  }
+}

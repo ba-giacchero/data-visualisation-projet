@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "name": "Exemple synthétique pour vérifier l’import",
+  "countries": [{"season":"summer","year":2000,"noc":"DEMO","name":"Pays démonstrateur","continent":"Autre","gdp":10000,"population":1000000,"athletes":10,"medals":2}],
+  "sports": [{"season":"summer","year":2000,"noc":"DEMO","sport":"Discipline témoin","athletes":10,"medals":2}],
+  "profiles": [{"season":"summer","year":2000,"sport":"Discipline témoin","level":"sport","event":"","sex":"F","cohort":"all","total":10,"height":{"n":8,"p10":160,"q1":165,"median":170,"q3":175,"p90":180},"weight":null,"age":null}],
+  "hosts": [{"season":"summer","year":2000,"noc":"DEMO","name":"Pays démonstrateur","city":"Ville témoin"}],
+  "meta": {"note":"Données fictives exclusivement destinées à vérifier le changement de dataset. Ne pas utiliser pour une analyse des Jeux réels."}
+}
