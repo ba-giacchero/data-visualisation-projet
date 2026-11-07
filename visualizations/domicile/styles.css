@@ -33,3 +33,21 @@ select { border:1px solid #bfc3b9; border-radius:2px; background:var(--panel); c
 .wiki-preview-row { display: flex; justify-content: space-between; gap: 10px; }
 .wiki-preview-row span { color: var(--muted); }
 .wiki-preview-row b { color: var(--ink); font-weight: 600; }
+
+/* Moteurs sportifs de l'avantage domicile (Niveau 2 enrichi) */
+.host-sports-breakdown { margin-top: 22px; padding: 18px 20px; border: 1px solid var(--line); background: var(--panel); }
+.host-sports-header { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.host-sports-header h3 { margin: 0; font: 600 18px 'Space Grotesk', sans-serif; color: var(--ink); }
+.host-sports-header span { color: var(--muted); font-size: 12px; }
+.host-sports-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.host-sport-item { padding: 10px 12px; border: 1px solid #e5e2d9; background: var(--paper); display: grid; gap: 6px; }
+.host-sport-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+.host-sport-delta { font: 600 12px 'Space Grotesk', sans-serif; padding: 1px 6px; border-radius: 999px; }
+.host-sport-delta.pos { background: #dcece9; color: var(--teal); }
+.host-sport-delta.neutral { background: #eae7df; color: var(--muted); }
+.host-sport-bars { display: grid; gap: 4px; font-size: 11px; color: var(--muted); }
+.host-bar-row { display: grid; grid-template-columns: 72px 1fr 48px; align-items: center; gap: 6px; }
+.host-bar-track { height: 6px; background: #e2dfd6; border-radius: 3px; overflow: hidden; }
+.host-bar-fill { height: 100%; border-radius: 3px; }
+.host-bar-fill.at-t { background: var(--orange); }
+.host-bar-fill.before-t { background: #959d97; }

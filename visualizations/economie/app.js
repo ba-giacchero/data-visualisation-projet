@@ -104,6 +104,14 @@ function appliquerParametresUrl() {
   if (urlDejaAppliquee) return;
   urlDejaAppliquee = true;
   const params = new URLSearchParams(window.location.search);
+  const sParam = params.get("saison") || params.get("season");
+  if (sParam === "hiver" || sParam === "Winter") {
+    etat.saison = "hiver";
+    d3.selectAll("input[name=saison]").property("checked", function() { return this.value === "hiver"; });
+  } else if (sParam === "ete" || sParam === "Summer") {
+    etat.saison = "ete";
+    d3.selectAll("input[name=saison]").property("checked", function() { return this.value === "ete"; });
+  }
   const y = +params.get("year") || +params.get("annee");
   if (y) etat.annee = y;
   const m = params.get("mesure");
@@ -418,10 +426,11 @@ function ecrireCouverture(pays, visibles) {
   const nonPlaces = pays.filter(d => !defini(d)).length;
   const masques = pays.length - visibles.length - nonPlaces;
   const totalAthletes = d3.sum(visibles, d => d.athletes);
-  const peutLier = etat.jeux === "olympiques" && etat.saison === "ete" && etat.annee <= 2016;
+  const sCible = etat.saison === "hiver" ? "Winter" : "Summer";
+  const peutLier = etat.jeux === "olympiques" && etat.annee <= 2016;
   const lienGeo = peutLier
     ? wikiLinkHtml({
-        href: `../geographie/index.html?year=${etat.annee}`,
+        href: `../geographie/index.html?season=${sCible}&year=${etat.annee}`,
         text: `${visibles.length} pays affichés`,
         eyebrow: "La carte des groupes sportifs",
         title: `Géographie des délégations · ${etat.annee}`,
@@ -431,7 +440,7 @@ function ecrireCouverture(pays, visibles) {
     : `${visibles.length} pays affichés`;
   const lienAnat = peutLier
     ? wikiLinkHtml({
-        href: `../anatomie/index.html?year=${etat.annee}`,
+        href: `../anatomie/index.html?season=${sCible}&year=${etat.annee}`,
         text: `${part("athletes")} % des athlètes de l’édition`,
         eyebrow: "L’anatomie de l’élite",
         title: `Profils morphologiques · ${etat.annee}`,
@@ -564,9 +573,10 @@ function majTableau(lignes) {
     .each(function (d) {
       d3.select(this).selectAll("td").data(COLONNES_TABLEAU).each(function (c) {
         const td = d3.select(this);
-        if (c.id === "athletes" && etat.jeux === "olympiques" && etat.saison === "ete" && d.annee <= 2016) {
+        if (c.id === "athletes" && etat.jeux === "olympiques" && d.annee <= 2016) {
+          const sCible = etat.saison === "hiver" ? "Winter" : "Summer";
           return td.html(wikiLinkHtml({
-            href: `../geographie/index.html?year=${d.annee}&noc=${d.pays}`,
+            href: `../geographie/index.html?season=${sCible}&year=${d.annee}&noc=${d.pays}`,
             text: c.texte(d),
             eyebrow: "La carte des groupes sportifs",
             title: `${d.nom} · ${d.annee}`,
@@ -783,12 +793,13 @@ function resume({ selection, serie, presentes, tracables }) {
   const boycotts = absences.filter(boycott).map(a => `${a} (${boycott(a)})`);
   if (boycotts.length) infos.push(`Années de boycott parmi ces absences : ${boycotts.join(", ")}.`);
 
-  if (etat.jeux === "olympiques" && etat.saison === "ete") {
+  if (etat.jeux === "olympiques") {
+    const sCible = etat.saison === "hiver" ? "Winter" : "Summer";
     const cibleAnnee = Math.min(etat.annee, 2016);
     const courant = presentes.find(d => d.annee === cibleAnnee) || presentes[presentes.length - 1];
     if (courant && courant.annee <= 2016) {
       const geoLien = wikiLinkHtml({
-        href: `../geographie/index.html?year=${courant.annee}&noc=${courant.pays}`,
+        href: `../geographie/index.html?season=${sCible}&year=${courant.annee}&noc=${courant.pays}`,
         text: `${nombre(courant.athletes)} athlètes en ${courant.annee}`,
         eyebrow: "La carte des groupes sportifs",
         title: `Délégation de ${selection.nom} (${courant.annee})`,
@@ -801,10 +812,10 @@ function resume({ selection, serie, presentes, tracables }) {
       });
       infos.push(`Délégation : ${geoLien}.`);
     }
-    const accueils = getHostsByNocOrIso(selection.cle);
+    const accueils = getHostsByNocOrIso(selection.cle, sCible);
     if (accueils.length) {
       const liensHote = accueils.map(h => wikiLinkHtml({
-        href: `../domicile/index.html?year=${h.year}`,
+        href: `../domicile/index.html?season=${sCible}&year=${h.year}`,
         text: `${h.city} ${h.year}`,
         eyebrow: "Avantage à domicile",
         title: `${h.country} · ${h.city} ${h.year}`,
@@ -969,10 +980,11 @@ function majCurseurAnnee() {
 function afficherAnnee() {
   d3.select("#annee").property("value", annees.indexOf(etat.annee)).attr("aria-valuetext", etat.annee);
   d3.select("#annee-valeur").text(etat.annee);
-  const hote = etat.jeux === "olympiques" && etat.saison === "ete" ? getHostByYear(etat.annee) : null;
+  const sCible = etat.saison === "hiver" ? "Winter" : "Summer";
+  const hote = etat.jeux === "olympiques" ? getHostByYear(etat.annee, sCible) : null;
   if (hote) {
     d3.select("#hote-lien").html(wikiLinkHtml({
-      href: `../domicile/index.html?year=${hote.year}`,
+      href: `../domicile/index.html?season=${sCible}&year=${hote.year}`,
       text: `${hote.city}`,
       className: "wiki-badge",
       eyebrow: "Avantage à domicile",

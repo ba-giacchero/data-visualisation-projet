@@ -13,32 +13,34 @@
   <header class="masthead">
     <div class="eyebrow">Données olympiques · Exploration interactive</div>
     <h1>La carte des groupes sportifs</h1>
-    <p class="intro">Où se concentrent les spécialistes d’une discipline&nbsp;? Cliquez sur un pays, un sport ou une édition soulignés en pointillés pour explorer sa richesse, la morphologie des athlètes ou l’avantage à domicile.</p>
+    <p class="intro">Où se concentrent les spécialistes et les médaillés d’une discipline&nbsp;? Basculez entre participation, médailles et spécialisation nationale, puis cliquez sur un pays, un sport ou une édition soulignés en pointillés pour naviguer à travers les vues.</p>
   </header>
   <main>
     <section class="controls" aria-label="Contrôles de la carte">
+      <div class="control-group"><label for="season">Jeu de données</label><select id="season"><option value="Summer">Jeux d’Été (1960–2016)</option><option value="Winter">Jeux d’Hiver (1960–2014)</option></select></div>
       <div class="control-group"><label for="year">Édition</label><select id="year"></select></div>
       <div class="control-group sport-control"><label for="sport">Discipline</label><select id="sport"></select></div>
+      <div class="control-group"><label for="metric">Mesure cartographique</label><select id="metric"><option value="athletes">Athlètes engagés (volume)</option><option value="medals">Médailles remportées (élite)</option><option value="specialization">Spécialisation (% délégation / réussite)</option></select></div>
       <button id="reset" class="reset-button" type="button">Réinitialiser</button>
       <div class="map-summary"><strong id="athlete-total">—</strong><span id="summary-label">athlètes affichés</span></div>
     </section>
     <section class="map-layout">
       <div class="map-panel">
-        <div class="map-heading"><div><span class="eyebrow">Spécialisation géographique</span><h2 id="map-title">Tous les sports</h2></div><p id="map-context">Cliquez sur un pays pour explorer sa délégation.</p></div>
+        <div class="map-heading"><div><span class="eyebrow" id="map-eyebrow">Spécialisation géographique</span><h2 id="map-title">Tous les sports</h2></div><p id="map-context">Cliquez sur un pays pour explorer sa délégation.</p></div>
         <div id="map" role="img" aria-label="Carte mondiale des délégations olympiques"></div>
-        <div class="scale"><span>Moins d’athlètes</span><i></i><span>Plus d’athlètes</span></div>
+        <div class="scale"><span id="scale-min">Moins d’athlètes</span><i></i><span id="scale-max">Plus d’athlètes</span></div>
       </div>
       <aside id="detail-panel" class="detail-panel" aria-live="polite">
         <button id="close-detail" class="close-button" type="button" aria-label="Fermer le détail">×</button>
-        <div class="eyebrow">Drill-down</div>
+        <div class="eyebrow">Drill-down · Profil national</div>
         <h2 id="detail-title">Choisissez un pays</h2>
-        <p id="detail-subtitle">La répartition des athlètes par sport apparaîtra ici.</p>
+        <p id="detail-subtitle">La répartition des athlètes et des médailles par sport apparaîtra ici.</p>
         <div id="detail-chart"></div>
         <div id="detail-legend"></div>
         <div id="detail-context" class="wiki-context"></div>
       </aside>
     </section>
-    <p class="source-note">Source : 120 Years of Olympic History (Kaggle). Les délégations sont calculées en comptant chaque athlète une seule fois par édition. Les pays sans correspondance cartographique restent visibles dans les données mais ne peuvent pas être dessinés sur la carte.</p>
+    <p class="source-note">Source : 120 Years of Olympic History (Kaggle). Les athlètes sont dédupliqués par pays et édition ; les médailles collectives comptent pour un seul titre par épreuve. Basculez entre « Athlètes », « Médailles » et « Spécialisation » pour révéler les bastions sportifs indépendamment de la taille démographique des pays.</p>
   </main>
   <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
 </body>

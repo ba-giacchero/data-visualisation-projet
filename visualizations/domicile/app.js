@@ -1,14 +1,12 @@
-import { bindWikiPreviews, showWikiPreview, moveWikiPreview, hideWikiPreview, wikiLinkHtml } from '../shared-links.js';
+import { HOST_EDITIONS, WINTER_HOST_EDITIONS, bindWikiPreviews, showWikiPreview, moveWikiPreview, hideWikiPreview, wikiLinkHtml } from '../shared-links.js';
 
 const OLYMPIC_FILE = '../../120 years of Olympic history/athlete_events.csv';
 const GDP_FILE = '../../Global GDP-PIB per Capita Dataset (1960-present)/pib_per_capita_countries_dataset.csv';
 const POPULATION_FILE = '../../Demographic data/wdi_wide.csv';
-const state = { index: 13, rankMetric: 'delegationEffect', detailVisible: true };
-const historicalEconomicCodes = { FRG: 'DEU', URS: 'RUS' };
-const populationKeys = { ITA:'italy', JPN:'japan', MEX:'mexico', FRG:'germany', CAN:'canada', URS:'russianfederation', USA:'unitedstates', KOR:'korearep', ESP:'spain', AUS:'australia', GRE:'greece', CHN:'china', GBR:'unitedkingdom', BRA:'brazil' };
-const hostEvents = [
-  { year:1960, city:'Rome', country:'Italie', noc:'ITA' }, { year:1964, city:'Tokyo', country:'Japon', noc:'JPN' }, { year:1968, city:'Mexico City', country:'Mexique', noc:'MEX' }, { year:1972, city:'Munich', country:'Allemagne de l’Ouest', noc:'FRG' }, { year:1976, city:'Montreal', country:'Canada', noc:'CAN' }, { year:1980, city:'Moscow', country:'URSS', noc:'URS' }, { year:1984, city:'Los Angeles', country:'États-Unis', noc:'USA' }, { year:1988, city:'Seoul', country:'Corée du Sud', noc:'KOR' }, { year:1992, city:'Barcelona', country:'Espagne', noc:'ESP' }, { year:1996, city:'Atlanta', country:'États-Unis', noc:'USA' }, { year:2000, city:'Sydney', country:'Australie', noc:'AUS' }, { year:2004, city:'Athens', country:'Grèce', noc:'GRE' }, { year:2008, city:'Beijing', country:'Chine', noc:'CHN' }, { year:2012, city:'London', country:'Royaume-Uni', noc:'GBR' }, { year:2016, city:'Rio de Janeiro', country:'Brésil', noc:'BRA' }
-];
+const state = { season: 'Summer', index: 13, rankMetric: 'delegationEffect', detailVisible: true };
+const historicalEconomicCodes = { FRG: 'DEU', URS: 'RUS', YUG: 'SRB' };
+const populationKeys = { ITA:'italy', JPN:'japan', MEX:'mexico', FRG:'germany', CAN:'canada', URS:'russianfederation', RUS:'russianfederation', USA:'unitedstates', KOR:'korearep', ESP:'spain', AUS:'australia', GRE:'greece', CHN:'china', GBR:'unitedkingdom', BRA:'brazil', AUT:'austria', FRA:'france', YUG:'serbia', NOR:'norway' };
+
 const formatNumber = d3.format(',');
 const formatMoney = value => value >= 1000 ? `$${d3.format(',.0f')(value)}` : `$${d3.format('.2f')(value)}`;
 const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -17,23 +15,44 @@ let model;
 function aggregate(rows, gdpRows, populationRows) {
   const groups = new Map();
   const sProfiles = new Map();
-  rows.filter(row => row.Season === 'Summer' && +row.Year >= 1960 && +row.Year <= 2016).forEach(row => {
-    const key = `${row.Year}|${row.NOC}`;
-    if (!groups.has(key)) groups.set(key, { year:+row.Year, noc:row.NOC, athletes:new Set(), medals:new Set(), sports:new Map() });
+  const yearsBySeason = { Summer: new Set(), Winter: new Set() };
+
+  rows.filter(row => (row.Season === 'Summer' || row.Season === 'Winter') && +row.Year >= 1960 && +row.Year <= 2016).forEach(row => {
+    const year = +row.Year;
+    yearsBySeason[row.Season].add(year);
+    const key = `${row.Season}|${year}|${row.NOC}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        season: row.Season,
+        year,
+        noc: row.NOC,
+        athletes: new Set(),
+        medals: new Set(),
+        sports: new Map(),
+        sportMedals: new Map()
+      });
+    }
     const group = groups.get(key);
     const athleteKey = `${row.NOC}|${row.ID}`;
     group.athletes.add(athleteKey);
-    if (row.Medal && row.Medal !== 'NA') group.medals.add(`${row.NOC}|${row.Event}|${row.Medal}`);
     if (!group.sports.has(row.Sport)) group.sports.set(row.Sport, new Set());
     group.sports.get(row.Sport).add(athleteKey);
 
+    if (row.Medal && row.Medal !== 'NA') {
+      const mKey = `${row.NOC}|${row.Event}|${row.Medal}`;
+      group.medals.add(mKey);
+      if (!group.sportMedals.has(row.Sport)) group.sportMedals.set(row.Sport, new Set());
+      group.sportMedals.get(row.Sport).add(mKey);
+    }
+
     if (row.Age !== 'NA' && row.Height !== 'NA' && row.Weight !== 'NA') {
-      const sKey = `${row.Year}|${row.Sport}`;
+      const sKey = `${row.Season}|${year}|${row.Sport}`;
       if (!sProfiles.has(sKey)) sProfiles.set(sKey, { ages:[], heights:[], weights:[] });
       const sp = sProfiles.get(sKey);
       sp.ages.push(+row.Age); sp.heights.push(+row.Height); sp.weights.push(+row.Weight);
     }
   });
+
   const gdp = new Map();
   gdpRows.filter(row => row.indicator_code === 'NY.GDP.PCAP.CD').forEach(row => {
     const value = +String(row.gdp_per_capita).replace(',', '.');
@@ -49,12 +68,23 @@ function aggregate(rows, gdpRows, populationRows) {
     height: d3.median(v.heights),
     weight: d3.median(v.weights)
   }]));
+
   return {
-    groups:[...groups.values()].map(group => ({
+    seasonYears: {
+      Summer: [...yearsBySeason.Summer].sort(d3.ascending),
+      Winter: [...yearsBySeason.Winter].sort(d3.ascending)
+    },
+    groups: [...groups.values()].map(group => ({
       ...group,
-      delegation:group.athletes.size,
-      medals:group.medals.size,
-      topSports:[...group.sports.entries()].map(([s, set]) => ({ sport:s, count:set.size })).sort((a,b) => d3.descending(a.count, b.count)).slice(0, 3)
+      delegation: group.athletes.size,
+      medals: group.medals.size,
+      sportAthletesMap: new Map([...group.sports.entries()].map(([s, set]) => [s, set.size])),
+      sportMedalsMap: new Map([...group.sportMedals.entries()].map(([s, set]) => [s, set.size])),
+      topSports: [...group.sports.entries()].map(([s, set]) => ({
+        sport: s,
+        count: set.size,
+        medals: group.sportMedals.get(s)?.size || 0
+      })).sort((a,b) => d3.descending(a.medals, b.medals) || d3.descending(a.count, b.count)).slice(0, 3)
     })),
     gdp,
     population,
@@ -62,31 +92,93 @@ function aggregate(rows, gdpRows, populationRows) {
   };
 }
 
+function getEditionByOffset(season, baseYear, offset) {
+  const years = model.seasonYears[season] || [];
+  const idx = years.indexOf(baseYear);
+  if (idx === -1) return baseYear + offset * 4;
+  const targetIdx = idx + offset;
+  if (targetIdx >= 0 && targetIdx < years.length) return years[targetIdx];
+  return baseYear + offset * 4;
+}
+
 function previousAverage(host, key) {
-  const values = d3.range(1, 4).map(distance => model.groups.find(row => row.year === host.year - distance * 4 && row.noc === host.noc)?.[key]).filter(value => value !== undefined);
+  const values = d3.range(1, 4).map(distance => {
+    const y = getEditionByOffset(host.season, host.year, -distance);
+    return model.groups.find(row => row.season === host.season && row.year === y && row.noc === host.noc)?.[key];
+  }).filter(value => value !== undefined && value > 0);
   return values.length ? d3.mean(values) : null;
 }
 
-function enrichHosts() {
-  return hostEvents.map(host => {
-    const current = model.groups.find(row => row.year === host.year && row.noc === host.noc);
+function computeSportDrivers(host, currentGroup) {
+  if (!currentGroup) return [];
+  const prevGroups = d3.range(1, 4).map(distance => {
+    const y = getEditionByOffset(host.season, host.year, -distance);
+    return model.groups.find(row => row.season === host.season && row.year === y && row.noc === host.noc);
+  }).filter(Boolean);
+
+  const allSports = new Set([
+    ...currentGroup.sportAthletesMap.keys(),
+    ...prevGroups.flatMap(g => [...g.sportAthletesMap.keys()])
+  ]);
+
+  const drivers = [];
+  allSports.forEach(sport => {
+    const medT = currentGroup.sportMedalsMap.get(sport) || 0;
+    const athT = currentGroup.sportAthletesMap.get(sport) || 0;
+    const medPrev = prevGroups.length ? d3.mean(prevGroups, g => g.sportMedalsMap.get(sport) || 0) : 0;
+    const athPrev = prevGroups.length ? d3.mean(prevGroups, g => g.sportAthletesMap.get(sport) || 0) : 0;
+    if (medT === 0 && athT < 3) return;
+    drivers.push({
+      sport,
+      medT,
+      medPrev,
+      medDelta: medT - medPrev,
+      athT,
+      athPrev,
+      athDelta: athT - athPrev
+    });
+  });
+
+  return drivers
+    .sort((a, b) => d3.descending(a.medDelta, b.medDelta) || d3.descending(a.medT, b.medT) || d3.descending(a.athDelta, b.athDelta))
+    .slice(0, 4);
+}
+
+function enrichHostsForSeason(season) {
+  const rawList = season === 'Winter' ? WINTER_HOST_EDITIONS : HOST_EDITIONS;
+  return rawList.map(host => {
+    const current = model.groups.find(row => row.season === season && row.year === host.year && row.noc === host.noc);
     const delegationBase = previousAverage(host, 'delegation');
     const medalsBase = previousAverage(host, 'medals');
     return {
       ...host,
-      delegation:current?.delegation ?? null,
-      medals:current?.medals ?? null,
-      topSports:current?.topSports ?? [],
-      gdp:model.gdp.get(`${host.year}|${historicalEconomicCodes[host.noc] || host.noc}`) ?? null,
-      population:model.population.get(populationKeys[host.noc] || '') ?? null,
-      delegationEffect:delegationBase && current ? (current.delegation - delegationBase) / delegationBase * 100 : null,
-      medalsEffect:medalsBase && current ? (current.medals - medalsBase) / medalsBase * 100 : null
+      delegation: current?.delegation ?? null,
+      medals: current?.medals ?? null,
+      topSports: current?.topSports ?? [],
+      sportDrivers: computeSportDrivers(host, current),
+      gdp: model.gdp.get(`${host.year}|${historicalEconomicCodes[host.noc] || host.noc}`) ?? null,
+      population: model.population.get(populationKeys[host.noc] || '') ?? null,
+      delegationEffect: delegationBase && current ? (current.delegation - delegationBase) / delegationBase * 100 : null,
+      medalsEffect: medalsBase && current ? (current.medals - medalsBase) / medalsBase * 100 : null
     };
   });
 }
 
+function updateSeasonHosts() {
+  model.hosts = enrichHostsForSeason(state.season);
+  const avail = availableHosts();
+  if (!avail.includes(model.hosts[state.index])) {
+    state.index = model.hosts.indexOf(avail[avail.length - 1] || model.hosts[0]);
+  }
+}
+
 function applyUrlParams() {
   const params = new URLSearchParams(window.location.search);
+  const seasonParam = params.get('season') || params.get('saison');
+  if (seasonParam === 'Winter' || seasonParam === 'hiver') state.season = 'Winter';
+  else if (seasonParam === 'Summer' || seasonParam === 'ete') state.season = 'Summer';
+  model.hosts = enrichHostsForSeason(state.season);
+
   const y = +params.get('year');
   const noc = params.get('noc') || params.get('country');
   if (y) {
@@ -100,15 +192,21 @@ function applyUrlParams() {
 
 function initialize(rows, gdpRows, populationRows) {
   model = aggregate(rows, gdpRows, populationRows);
-  model.hosts = enrichHosts();
+  model.hosts = enrichHostsForSeason(state.season);
   applyUrlParams();
   setupControls();
   render();
 }
 
-function selectedHost() { return model.hosts[state.index]; }
+function selectedHost() { return model.hosts[state.index] || model.hosts[0]; }
 
 function setupControls() {
+  d3.select('#season').property('value', state.season).on('change', event => {
+    state.season = event.target.value;
+    state.detailVisible = true;
+    updateSeasonHosts();
+    render();
+  });
   d3.select('#rank-metric').on('change', event => {
     state.rankMetric = event.target.value;
     const available = availableHosts();
@@ -125,7 +223,7 @@ function availableHosts() {
 function render() {
   const host = selectedHost();
   const selLink = wikiLinkHtml({
-    href: `../geographie/index.html?year=${host.year}&noc=${host.noc}`,
+    href: `../geographie/index.html?season=${state.season}&year=${host.year}&noc=${host.noc}`,
     text: `${host.city} ${host.year}`,
     eyebrow: 'La carte des groupes sportifs',
     title: `${host.country} (${host.noc}) · ${host.year}`,
@@ -143,7 +241,7 @@ function render() {
 }
 
 function renderTimeline() {
-  d3.select('#timeline').selectAll('button').data(availableHosts(), host => host.year).join('button').attr('class', host => `timeline-item ${host.year === selectedHost().year ? 'active' : ''}`).on('click', (_, host) => { state.index = model.hosts.indexOf(host); state.detailVisible = true; render(); }).html(host => `<span class="timeline-dot"></span><span>${host.year}</span><span class="timeline-city">${host.city}</span>`);
+  d3.select('#timeline').selectAll('button').data(availableHosts(), host => `${host.year}-${host.city}`).join('button').attr('class', host => `timeline-item ${host.year === selectedHost().year ? 'active' : ''}`).on('click', (_, host) => { state.index = model.hosts.indexOf(host); state.detailVisible = true; render(); }).html(host => `<span class="timeline-dot"></span><span>${host.year}</span><span class="timeline-city">${host.city}</span>`);
 }
 
 function renderImpact() {
@@ -178,8 +276,8 @@ function renderImpact() {
 
 function eventRows(host) {
   return d3.range(-3, 4).map(offset => {
-    const year = host.year + offset * 4;
-    const data = model.groups.find(row => row.year === year && row.noc === host.noc);
+    const year = getEditionByOffset(host.season, host.year, offset);
+    const data = model.groups.find(row => row.season === host.season && row.year === year && row.noc === host.noc);
     const economicCode = historicalEconomicCodes[host.noc] || host.noc;
     return { offset, year, delegation:data?.delegation ?? null, medals:data?.medals ?? null, gdp:model.gdp.get(`${year}|${economicCode}`) ?? null };
   });
@@ -187,6 +285,7 @@ function eventRows(host) {
 
 function renderEventDetail(host) {
   const rows = eventRows(host);
+  const ecoSaison = state.season === 'Winter' ? 'hiver' : 'ete';
   const container = document.querySelector('#event-chart');
   const width = Math.max(container.clientWidth, 760);
   const height = 700;
@@ -203,7 +302,7 @@ function renderEventDetail(host) {
       y:margin.top,
       format:value => `${formatNumber(value)} athlètes`,
       tick:value => value,
-      href: `../geographie/index.html?year=${host.year}&noc=${host.noc}`,
+      href: `../geographie/index.html?season=${state.season}&year=${host.year}&noc=${host.noc}`,
       preview: {
         eyebrow: 'La carte des groupes sportifs',
         title: `Délégation de ${host.country} (${host.year})`,
@@ -218,7 +317,7 @@ function renderEventDetail(host) {
       y:margin.top + panelHeight + gap,
       format:value => `${formatNumber(value)} médailles`,
       tick:value => value,
-      href: `../economie/index.html?year=${host.year}&country=${host.noc}&mesure=medailles`,
+      href: `../economie/index.html?saison=${ecoSaison}&year=${host.year}&country=${host.noc}&mesure=medailles`,
       preview: {
         eyebrow: 'Le poids de la richesse',
         title: `Médailles de ${host.country} (${host.year})`,
@@ -233,7 +332,7 @@ function renderEventDetail(host) {
       y:margin.top + (panelHeight + gap) * 2,
       format:formatMoney,
       tick:value => value >= 1000 ? `$${d3.format('.2s')(value)}` : `$${value}`,
-      href: `../economie/index.html?year=${host.year}&country=${host.noc}`,
+      href: `../economie/index.html?saison=${ecoSaison}&year=${host.year}&country=${host.noc}`,
       preview: {
         eyebrow: 'Le poids de la richesse',
         title: `Trajectoire économique · ${host.country}`,
@@ -245,7 +344,7 @@ function renderEventDetail(host) {
   d3.select('#event-detail').attr('hidden', null);
 
   const countryLink = wikiLinkHtml({
-    href: `../economie/index.html?year=${host.year}&country=${host.noc}`,
+    href: `../economie/index.html?saison=${ecoSaison}&year=${host.year}&country=${host.noc}`,
     text: host.country,
     eyebrow: 'Le poids de la richesse',
     title: `${host.country} (${host.noc}) · Trajectoire économique`,
@@ -255,7 +354,7 @@ function renderEventDetail(host) {
   d3.select('#event-detail-title').html(`${countryLink} · ${host.city} ${host.year}`);
 
   const delLink = wikiLinkHtml({
-    href: `../geographie/index.html?year=${host.year}&noc=${host.noc}`,
+    href: `../geographie/index.html?season=${state.season}&year=${host.year}&noc=${host.noc}`,
     text: `${formatNumber(host.delegation || 0)} athlètes`,
     eyebrow: 'La carte des groupes sportifs',
     title: `Composition sportive de ${host.country} (${host.year})`,
@@ -264,15 +363,15 @@ function renderEventDetail(host) {
   });
 
   const sportsLinks = (host.topSports || []).map(item => {
-    const prof = model.sportProfiles.get(`${host.year}|${item.sport}`);
+    const prof = model.sportProfiles.get(`${state.season}|${host.year}|${item.sport}`);
     return wikiLinkHtml({
-      href: `../anatomie/index.html?year=${host.year}&sport=${encodeURIComponent(item.sport)}`,
-      text: `${item.sport} (${item.count})`,
+      href: `../anatomie/index.html?season=${state.season}&year=${host.year}&sport=${encodeURIComponent(item.sport)}`,
+      text: `${item.sport} (${item.medals} méd. / ${item.count} athl.)`,
       eyebrow: 'L’anatomie de l’élite',
       title: `Profil morphologique · ${item.sport} (${host.year})`,
-      body: `Comparer l’âge, la taille et le poids médians des athlètes en ${item.sport}.`,
+      body: `Comparer l’âge, la taille et le poids des médaillés et participants en ${item.sport}.`,
       metrics: [
-        [`Effectif ${host.noc}`, `${item.count} athlètes`],
+        [`Bilan ${host.noc}`, `${item.medals} méd. · ${item.count} athl.`],
         ['Taille médiane', prof ? `${prof.height.toFixed(0)} cm` : 'N/D'],
         ['Poids médian', prof ? `${prof.weight.toFixed(0)} kg` : 'N/D']
       ]
@@ -281,9 +380,8 @@ function renderEventDetail(host) {
 
   d3.select('#event-narrative').html(
     `En <strong>${host.year}</strong>, ${countryLink} engage ${delLink} à domicile` +
-    (sportsLinks ? `, principalement en ${sportsLinks}` : '') + `.`
+    (sportsLinks ? `, avec pour fers de lance ${sportsLinks}` : '') + `.`
   );
-  bindWikiPreviews(document.querySelector('#event-detail'));
 
   d3.select('#event-chart').selectAll('svg').remove();
   const svg = d3.select('#event-chart').append('svg').attr('class','event-svg').attr('width',width).attr('height',height).attr('viewBox',`0 0 ${width} ${height}`);
@@ -317,12 +415,52 @@ function renderEventDetail(host) {
       .on('click', (_, row) => {
         if (row[panel.key] === null) return;
         if (panel.key === 'delegation') {
-          window.location.href = `../geographie/index.html?year=${row.year}&noc=${host.noc}`;
+          window.location.href = `../geographie/index.html?season=${state.season}&year=${row.year}&noc=${host.noc}`;
         } else {
-          window.location.href = `../economie/index.html?year=${row.year}&country=${host.noc}`;
+          window.location.href = `../economie/index.html?saison=${ecoSaison}&year=${row.year}&country=${host.noc}`;
         }
       });
   });
+
+  // Render Sport Drivers Breakdown
+  const breakdown = d3.select('#host-sports-breakdown').html('');
+  if (host.sportDrivers && host.sportDrivers.length) {
+    breakdown.append('div').attr('class', 'host-sports-header').html(
+      `<h3>Disciplines motrices de l’avantage domicile à ${host.city} ${host.year}</h3>` +
+      `<span>Médailles à T comparées à la moyenne des 3 éditions précédentes (T−3 à T−1)</span>`
+    );
+    const grid = breakdown.append('div').attr('class', 'host-sports-grid');
+    const maxMed = Math.max(1, d3.max(host.sportDrivers, d => Math.max(d.medT, d.medPrev)) || 1);
+
+    host.sportDrivers.forEach(d => {
+      const prof = model.sportProfiles.get(`${state.season}|${host.year}|${d.sport}`);
+      const sLink = wikiLinkHtml({
+        href: `../anatomie/index.html?season=${state.season}&year=${host.year}&sport=${encodeURIComponent(d.sport)}`,
+        text: d.sport,
+        eyebrow: 'L’anatomie de l’élite',
+        title: `${d.sport} · Profil & Podiums (${host.year})`,
+        body: `Analyser le gabarit des médaillés et les bastions nationaux en ${d.sport}.`,
+        metrics: [
+          [`Médailles ${host.noc} à T`, `${d.medT} (moy. avant : ${d.medPrev.toFixed(1)})`],
+          [`Athlètes ${host.noc} à T`, `${d.athT} (moy. avant : ${d.athPrev.toFixed(1)})`],
+          ['Profil médian mondial', prof ? `${prof.height.toFixed(0)} cm · ${prof.weight.toFixed(0)} kg` : 'N/D']
+        ]
+      });
+      const deltaStr = `${d.medDelta >= 0 ? '+' : ''}${d.medDelta.toFixed(1)} méd.`;
+      const wT = Math.round((d.medT / maxMed) * 100);
+      const wPrev = Math.round((d.medPrev / maxMed) * 100);
+
+      grid.append('div').attr('class', 'host-sport-item').html(
+        `<div class="host-sport-top"><strong>${sLink}</strong><span class="host-sport-delta ${d.medDelta > 0 ? 'pos' : 'neutral'}">${deltaStr}</span></div>` +
+        `<div class="host-sport-bars">` +
+          `<div class="host-bar-row"><span>À domicile (T)</span><div class="host-bar-track"><div class="host-bar-fill at-t" style="width:${wT}%"></div></div><b>${d.medT} méd.</b></div>` +
+          `<div class="host-bar-row"><span>Moy. T−3..−1</span><div class="host-bar-track"><div class="host-bar-fill before-t" style="width:${wPrev}%"></div></div><span>${d.medPrev.toFixed(1)} méd.</span></div>` +
+        `</div>`
+      );
+    });
+  }
+
+  bindWikiPreviews(document.querySelector('#event-detail'));
 }
 
 function showTooltip(event, host) { const metric = state.rankMetric === 'delegationEffect' ? 'Effet sur la taille de la délégation' : 'Effet sur les médailles'; const effect = key => host[key] === null ? 'N/D' : `${host[key] >= 0 ? '+' : ''}${host[key].toFixed(1)} %`; d3.select('#tooltip').html(`<strong>${host.country} · ${host.year}</strong><div class="tooltip-row"><span>Ville hôte</span><b>${host.city}</b></div><div class="tooltip-row"><span>Effet sur la taille de la délégation</span><b>${effect('delegationEffect')}</b></div><div class="tooltip-row"><span>Effet sur les médailles</span><b>${effect('medalsEffect')}</b></div><div class="tooltip-row"><span>PIB / habitant</span><b>${host.gdp ? formatMoney(host.gdp) : 'N/D'}</b></div><div class="tooltip-row"><span>Population</span><b>${host.population ? formatNumber(host.population) : 'N/D'}</b></div><div class="tooltip-row"><span>Nombre d’athlètes</span><b>${host.delegation ? formatNumber(host.delegation) : 'N/D'}</b></div><div class="tooltip-row"><span>Médailles</span><b>${host.medals ? formatNumber(host.medals) : 'N/D'}</b></div>`).classed('visible', true); moveTooltip(event); }
