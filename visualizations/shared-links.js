@@ -52,8 +52,7 @@ export function getHostsByNocOrIso(code, season = 'Summer') {
 
 // Cache mémoire partagé pour éviter de recharger athlete_events.csv (41 Mo) plusieurs fois dans la vue unifiée
 let olympicPromise = null;
-let gdpPromise = null;
-let popPromise = null;
+let economicPromise = null;
 let worldPromise = null;
 
 export function getOlympicRows() {
@@ -63,18 +62,12 @@ export function getOlympicRows() {
   return olympicPromise;
 }
 
-export function getGdpRows() {
-  if (!gdpPromise) {
-    gdpPromise = d3.csv(`${ROOT_PREFIX}Global GDP-PIB per Capita Dataset (1960-present)/pib_per_capita_countries_dataset.csv`);
+// PIB par habitant et population (Maddison 2023) par pays et par édition : même fichier que la vue 2
+export function getEconomicRows() {
+  if (!economicPromise) {
+    economicPromise = d3.csv(`${ROOT_PREFIX}visualizations/economie/data/olympiques.csv`);
   }
-  return gdpPromise;
-}
-
-export function getPopulationRows() {
-  if (!popPromise) {
-    popPromise = d3.csv(`${ROOT_PREFIX}Demographic data/wdi_wide.csv`);
-  }
-  return popPromise;
+  return economicPromise;
 }
 
 export function getWorldTopo() {

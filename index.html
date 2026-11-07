@@ -62,7 +62,7 @@
       <div class="viz-header">
         <div>
           <div class="eyebrow">1. Géographie et spécialisation sportive</div>
-          <h2 class="viz-title">La carte des groupes sportifs</h2>
+          <h2 class="viz-title">Les nations misent-elles sur quelques sports ?</h2>
           <p class="intro">Répartition mondiale des délégations et des médailles par discipline. Cliquez sur un pays de la carte pour afficher le détail de ses sports à droite.</p>
         </div>
       </div>
@@ -150,7 +150,7 @@
       <div class="viz-header">
         <div>
           <div class="eyebrow">2. Richesse nationale et rendement olympique</div>
-          <h2 class="viz-title">Le poids de la richesse</h2>
+          <h2 class="viz-title">La richesse fait-elle les médailles ?</h2>
           <p class="intro">Comparaison entre le produit intérieur brut par habitant et les performances olympiques. Ajustez les paramètres à gauche pour observer simultanément l’évolution du nuage à droite.</p>
         </div>
       </div>
@@ -174,7 +174,7 @@
         <!-- Panneau de contrôle latéral compact pour modifier les paramètres tout en voyant le graphique -->
         <aside id="controles" class="controles" aria-label="Paramètres du nuage économique">
           <div class="carte">
-            <div class="control-group">
+            <div class="control-group" style="display:none">
               <span class="etiquette">Compétition</span>
               <div class="segmente" role="radiogroup" aria-label="Compétition">
                 <label><input type="radio" name="jeux" value="olympiques" checked><span>Olympiques</span></label>
@@ -296,6 +296,7 @@
           </details>
         </div>
       </div>
+      <p class="source-note">Sources : 120 Years of Olympic History (Kaggle) ; Maddison Project Database 2023 (PIB par habitant en dollars PPA 2011, population).</p>
     </section>
 
     <!-- =====================================================================
@@ -305,7 +306,7 @@
       <div class="viz-header">
         <div>
           <div class="eyebrow">3. Avantage à domicile avant, pendant et après les Jeux</div>
-          <h2 class="viz-title">Trajectoire des pays hôtes</h2>
+          <h2 class="viz-title">Accueillir les Jeux améliore-t-il les résultats ?</h2>
           <p class="intro">Évolution de la taille des délégations, des médailles et du PIB par habitant autour de l’année d’accueil (notée T).</p>
         </div>
       </div>
@@ -379,6 +380,7 @@
       </div>
       <div id="dom-host-sports-breakdown" class="host-sports-breakdown"></div>
       <p class="source-note">Note : l’effet à domicile compare la valeur observée l’année d’accueil (T) à la moyenne des trois éditions précédentes disponibles (T-3, T-2 et T-1).</p>
+      <p class="source-note">Sources : 120 Years of Olympic History (Kaggle) ; Maddison Project Database 2023 (PIB par habitant en dollars PPA 2011, population).</p>
     </section>
 
     <!-- =====================================================================
@@ -388,7 +390,7 @@
       <div class="viz-header">
         <div>
           <div class="eyebrow">4. Profils physiques et sélection par discipline</div>
-          <h2 class="viz-title">L’anatomie de l’élite</h2>
+          <h2 class="viz-title">Chaque sport a-t-il son gabarit ?</h2>
           <p class="intro">Âge, taille et poids médians des athlètes par sport. Survolez ou cliquez sur une courbe pour comparer deux disciplines et observer l’écart entre médaillés et participants.</p>
         </div>
       </div>

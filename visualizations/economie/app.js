@@ -489,7 +489,7 @@ function dessinerTendance(t) {
   d3.select("#correlation").text(c
     ? `${etat.annee} : corrélation de rang entre richesse et ${mesure().nom} de ${decimal(c.rho)} ` +
       `(${forceLien(c.rho)}), sur ${c.n} pays au PIB connu.` +
-      (mesure().log && mesure().bandeZero ? " La tendance ignore les pays sans médaille, la corrélation non." : "")
+      (mesure().log && mesure().bandeZero ? "" : "")
     : `${etat.annee} : trop peu de pays au PIB connu pour mesurer un lien.`);
 }
 

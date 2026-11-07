@@ -1010,6 +1010,7 @@ select {
 }
 
 #sec-economie .tendance {
+  display: none;
   stroke: var(--ink);
   stroke-width: 2;
   stroke-opacity: .6;

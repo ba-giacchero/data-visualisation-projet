@@ -1,18 +1,15 @@
-import { HOST_EDITIONS, WINTER_HOST_EDITIONS, bindWikiPreviews, showWikiPreview, moveWikiPreview, hideWikiPreview, wikiLinkHtml, getOlympicRows, getGdpRows, getPopulationRows, registerVizController, navigateToViz } from '../shared-links.js';
+import { HOST_EDITIONS, WINTER_HOST_EDITIONS, bindWikiPreviews, showWikiPreview, moveWikiPreview, hideWikiPreview, wikiLinkHtml, getOlympicRows, getEconomicRows, registerVizController, navigateToViz } from '../shared-links.js';
 
 const state = { season: 'Summer', index: 13, rankMetric: 'delegationEffect', detailVisible: true };
-const historicalEconomicCodes = { FRG: 'DEU', URS: 'RUS', YUG: 'SRB' };
-const populationKeys = { ITA:'italy', JPN:'japan', MEX:'mexico', FRG:'germany', CAN:'canada', URS:'russianfederation', RUS:'russianfederation', USA:'unitedstates', KOR:'korearep', ESP:'spain', AUS:'australia', GRE:'greece', CHN:'china', GBR:'unitedkingdom', BRA:'brazil', AUT:'austria', FRA:'france', YUG:'serbia', NOR:'norway' };
 
 const formatNumber = d3.format(',');
 const formatMoney = value => value >= 1000 ? `$${d3.format(',.0f')(value)}` : `$${d3.format('.2f')(value)}`;
-const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const domSel = (scoped, fallback) => document.querySelector(scoped) ? d3.select(scoped) : d3.select(fallback);
 const domNode = (scoped, fallback) => document.querySelector(scoped) || document.querySelector(fallback);
 
 let model;
 
-function aggregate(rows, gdpRows, populationRows) {
+function aggregate(rows, economicRows) {
   const groups = new Map();
   const sProfiles = new Map();
   const yearsBySeason = { Summer: new Set(), Winter: new Set() };
@@ -53,15 +50,13 @@ function aggregate(rows, gdpRows, populationRows) {
     }
   });
 
+  // PIB par habitant et population (Maddison 2023), par année et code CIO : même source que la vue 2
   const gdp = new Map();
-  gdpRows.filter(row => row.indicator_code === 'NY.GDP.PCAP.CD').forEach(row => {
-    const value = +String(row.gdp_per_capita).replace(',', '.');
-    if (value > 0) gdp.set(`${row.year}|${row.country_code}`, value);
-  });
   const population = new Map();
-  populationRows.forEach(row => {
-    const value = +String(row.Population).replace(/,/g, '');
-    if (value > 0) population.set(normalize(row['Country Name']), value);
+  economicRows.forEach(row => {
+    const key = `${row.annee}|${row.pays}`;
+    if (+row.gdppc > 0) gdp.set(key, +row.gdppc);
+    if (+row.pop > 0) population.set(key, +row.pop);
   });
   const sportProfiles = new Map([...sProfiles.entries()].map(([k, v]) => [k, {
     age: d3.median(v.ages),
@@ -156,8 +151,8 @@ function enrichHostsForSeason(season) {
       medals: current?.medals ?? null,
       topSports: current?.topSports ?? [],
       sportDrivers: computeSportDrivers(host, current),
-      gdp: model.gdp.get(`${host.year}|${historicalEconomicCodes[host.noc] || host.noc}`) ?? null,
-      population: model.population.get(populationKeys[host.noc] || '') ?? null,
+      gdp: model.gdp.get(`${host.year}|${host.noc}`) ?? null,
+      population: model.population.get(`${host.year}|${host.noc}`) ?? null,
       delegationEffect: delegationBase && current ? (current.delegation - delegationBase) / delegationBase * 100 : null,
       medalsEffect: medalsBase && current ? (current.medals - medalsBase) / medalsBase * 100 : null
     };
@@ -191,8 +186,8 @@ function applyParams(params = {}) {
   render();
 }
 
-function initialize(rows, gdpRows, populationRows) {
-  model = aggregate(rows, gdpRows, populationRows);
+function initialize(rows, economicRows) {
+  model = aggregate(rows, economicRows);
   model.hosts = enrichHostsForSeason(state.season);
   setupControls();
   const urlParams = Object.fromEntries(new URLSearchParams(window.location.search).entries());
@@ -282,7 +277,7 @@ function renderImpact() {
   plot.append('g').attr('class', 'impact-axis').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(x).ticks(5, value => `$${d3.format('.2s')(value)}`));
   plot.append('g').attr('class', 'impact-axis').call(d3.axisLeft(y).ticks(6).tickFormat(value => `${value > 0 ? '+' : ''}${d3.format('.0f')(value)}%`));
   plot.append('line').attr('class', 'impact-zero').attr('x2', innerWidth).attr('y1', y(0)).attr('y2', y(0));
-  plot.append('text').attr('class', 'impact-label').attr('x', innerWidth / 2).attr('y', innerHeight + 42).attr('text-anchor', 'middle').text('PIB par habitant (USD courants, échelle logarithmique)');
+  plot.append('text').attr('class', 'impact-label').attr('x', innerWidth / 2).attr('y', innerHeight + 42).attr('text-anchor', 'middle').text('PIB par habitant (dollars PPA 2011, échelle logarithmique)');
   plot.append('text').attr('class', 'impact-label').attr('transform', 'rotate(-90)').attr('x', -innerHeight / 2).attr('y', -46).attr('text-anchor', 'middle').text(state.rankMetric === 'delegationEffect' ? 'Progression de la délégation' : 'Progression des médailles');
   const tooltip = d3.select('#tooltip');
   plot.selectAll('.impact-point').data(validRows, host => host.year).join('circle').attr('class', host => `impact-point ${host.year === selectedHost().year ? 'active' : ''}`).attr('cx', host => x(host.gdp)).attr('cy', host => y(host[state.rankMetric])).attr('r', host => radius(host.delegation)).attr('fill', host => host.medalsEffect === null ? '#aeb8b1' : color(host.medalsEffect)).on('click', (_, host) => { state.index = model.hosts.indexOf(host); state.detailVisible = true; render(); }).on('mouseenter', (event, host) => showTooltip(event, host)).on('mousemove', moveTooltip).on('mouseleave', () => tooltip.classed('visible', false));
@@ -292,8 +287,7 @@ function eventRows(host) {
   return d3.range(-3, 4).map(offset => {
     const year = getEditionByOffset(host.season, host.year, offset);
     const data = model.groups.find(row => row.season === host.season && row.year === year && row.noc === host.noc);
-    const economicCode = historicalEconomicCodes[host.noc] || host.noc;
-    return { offset, year, delegation:data?.delegation ?? null, medals:data?.medals ?? null, gdp:model.gdp.get(`${year}|${economicCode}`) ?? null };
+    return { offset, year, delegation:data?.delegation ?? null, medals:data?.medals ?? null, gdp:model.gdp.get(`${year}|${host.noc}`) ?? null };
   });
 }
 
@@ -344,7 +338,7 @@ function renderEventDetail(host) {
     },
     {
       key:'gdp',
-      title:'PIB par habitant (USD courants)',
+      title:'PIB par habitant (dollars PPA 2011)',
       color:'gdp',
       y:margin.top + (panelHeight + gap) * 2,
       format:formatMoney,
@@ -507,8 +501,8 @@ function moveTooltip(event) {
   d3.select('#tooltip').style('left', `${Math.max(8, left)}px`).style('top', `${Math.max(8, top)}px`);
 }
 
-Promise.all([getOlympicRows(), getGdpRows(), getPopulationRows()])
-  .then(([rows, gdpRows, populationRows]) => initialize(rows, gdpRows, populationRows))
+Promise.all([getOlympicRows(), getEconomicRows()])
+  .then(([rows, economicRows]) => initialize(rows, economicRows))
   .catch(error => {
     console.error(error);
     domSel('#dom-impact', '#impact').html('<p>Impossible de charger les données de la trajectoire des pays hôtes.</p>');

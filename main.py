@@ -9,6 +9,11 @@ class ProjectHandler(SimpleHTTPRequestHandler):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, directory=str(ROOT), **kwargs)
 
+	def end_headers(self):
+		# Toujours servir la dernière version des données et du code (pas de cache navigateur)
+		self.send_header("Cache-Control", "no-store")
+		super().end_headers()
+
 
 if __name__ == "__main__":
 	server = ThreadingHTTPServer(("localhost", 8000), ProjectHandler)
