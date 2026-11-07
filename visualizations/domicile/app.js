@@ -231,7 +231,7 @@ function render() {
     href: `../geographie/index.html?season=${state.season}&year=${host.year}&noc=${host.noc}`,
     text: `${host.city} ${host.year}`,
     eyebrow: 'La carte des groupes sportifs',
-    title: `${host.country} (${host.noc}) · ${host.year}`,
+    title: `${host.country} (${host.noc}) en ${host.year}`,
     body: `Explorer la carte mondiale et la répartition par discipline des ${formatNumber(host.delegation || 0)} athlètes de ${host.country}.`,
     metrics: [
       ['Délégation hôte', `${formatNumber(host.delegation || 0)} athlètes`],
@@ -258,9 +258,9 @@ function renderTimeline() {
 function renderImpact() {
   const container = domNode('#dom-impact', '#impact');
   if (!container) return;
-  const width = Math.max(container.clientWidth, 620);
-  const height = 430;
-  const margin = { top:25, right:30, bottom:58, left:70 };
+  const width = Math.max(container.clientWidth, 420);
+  const height = 390;
+  const margin = { top: 22, right: 24, bottom: 52, left: 62 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
   const validRows = availableHosts();
@@ -271,18 +271,18 @@ function renderImpact() {
   const maxMedalsEffect = d3.max(validRows, host => host.medalsEffect) || 1;
   const x = d3.scaleLog().domain([Math.max(100, minGdp * .8), maxGdp * 1.2]).range([0, innerWidth]);
   const y = d3.scaleLinear().domain([-maxEffect * 1.15, maxEffect * 1.15]).nice().range([innerHeight, 0]);
-  const radius = d3.scaleSqrt().domain([0, d3.max(validRows, host => host.delegation) || 1]).range([5, 25]);
+  const radius = d3.scaleSqrt().domain([0, d3.max(validRows, host => host.delegation) || 1]).range([5, 22]);
   const color = d3.scaleDiverging().domain([minMedalsEffect, 0, maxMedalsEffect]).interpolator(d3.interpolateRgbBasis(['#b9413e', '#f4f0e8', '#174d4b']));
   const impactSel = d3.select(container);
   impactSel.selectAll('svg').remove();
   const svg = impactSel.append('svg').attr('class', 'impact-svg').attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
   const plot = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
   plot.append('g').attr('class', 'impact-grid').call(d3.axisLeft(y).ticks(6).tickSize(-innerWidth).tickFormat(''));
-  plot.append('g').attr('class', 'impact-axis').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(x).ticks(6, value => `$${d3.format('.2s')(value)}`));
+  plot.append('g').attr('class', 'impact-axis').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(x).ticks(5, value => `$${d3.format('.2s')(value)}`));
   plot.append('g').attr('class', 'impact-axis').call(d3.axisLeft(y).ticks(6).tickFormat(value => `${value > 0 ? '+' : ''}${d3.format('.0f')(value)}%`));
   plot.append('line').attr('class', 'impact-zero').attr('x2', innerWidth).attr('y1', y(0)).attr('y2', y(0));
-  plot.append('text').attr('class', 'impact-label').attr('x', innerWidth / 2).attr('y', innerHeight + 45).attr('text-anchor', 'middle').text('PIB par habitant (USD courants, échelle logarithmique)');
-  plot.append('text').attr('class', 'impact-label').attr('transform', 'rotate(-90)').attr('x', -innerHeight / 2).attr('y', -51).attr('text-anchor', 'middle').text(state.rankMetric === 'delegationEffect' ? 'Progression de la taille de la délégation' : 'Progression des médailles');
+  plot.append('text').attr('class', 'impact-label').attr('x', innerWidth / 2).attr('y', innerHeight + 42).attr('text-anchor', 'middle').text('PIB par habitant (USD courants, échelle logarithmique)');
+  plot.append('text').attr('class', 'impact-label').attr('transform', 'rotate(-90)').attr('x', -innerHeight / 2).attr('y', -46).attr('text-anchor', 'middle').text(state.rankMetric === 'delegationEffect' ? 'Progression de la délégation' : 'Progression des médailles');
   const tooltip = d3.select('#tooltip');
   plot.selectAll('.impact-point').data(validRows, host => host.year).join('circle').attr('class', host => `impact-point ${host.year === selectedHost().year ? 'active' : ''}`).attr('cx', host => x(host.gdp)).attr('cy', host => y(host[state.rankMetric])).attr('r', host => radius(host.delegation)).attr('fill', host => host.medalsEffect === null ? '#aeb8b1' : color(host.medalsEffect)).on('click', (_, host) => { state.index = model.hosts.indexOf(host); state.detailVisible = true; render(); }).on('mouseenter', (event, host) => showTooltip(event, host)).on('mousemove', moveTooltip).on('mouseleave', () => tooltip.classed('visible', false));
 }
@@ -301,10 +301,10 @@ function renderEventDetail(host) {
   const ecoSaison = state.season === 'Winter' ? 'hiver' : 'ete';
   const container = domNode('#dom-event-chart', '#event-chart');
   if (!container) return;
-  const width = Math.max(container.clientWidth, 680);
-  const height = 700;
-  const margin = { top:30, right:30, bottom:48, left:72 };
-  const gap = 42;
+  const width = Math.max(container.clientWidth, 420);
+  const height = 430;
+  const margin = { top: 24, right: 20, bottom: 32, left: 60 };
+  const gap = 34;
   const panelHeight = (height - margin.top - margin.bottom - gap * 2) / 3;
   const innerWidth = width - margin.left - margin.right;
   const x = d3.scalePoint().domain(rows.map(row => row.offset)).range([0, innerWidth]).padding(.4);
@@ -352,8 +352,8 @@ function renderEventDetail(host) {
       targetParams: { saison: ecoSaison, year: host.year, country: host.noc },
       preview: {
         eyebrow: 'Le poids de la richesse',
-        title: `Trajectoire économique · ${host.country}`,
-        body: `Suivre la trajectoire PIB × efficacité olympique de ${host.country} depuis 1960.`,
+        title: `Trajectoire économique de ${host.country}`,
+        body: `Suivre la trajectoire du PIB et de l’efficacité olympique de ${host.country} depuis 1960.`,
         metrics: [['PIB/hab à T', host.gdp ? formatMoney(host.gdp) : 'N/D'], ['Population', host.population ? formatNumber(host.population) : 'N/D']]
       }
     }
@@ -364,11 +364,11 @@ function renderEventDetail(host) {
     href: `../economie/index.html?saison=${ecoSaison}&year=${host.year}&country=${host.noc}`,
     text: host.country,
     eyebrow: 'Le poids de la richesse',
-    title: `${host.country} (${host.noc}) · Trajectoire économique`,
-    body: `Explorer la position de ${host.country} dans le nuage PIB/hab × efficacité et sa trajectoire depuis 1960.`,
+    title: `${host.country} (${host.noc})`,
+    body: `Explorer la position de ${host.country} dans le nuage économique et sa trajectoire depuis 1960.`,
     metrics: [['PIB / habitant', host.gdp ? formatMoney(host.gdp) : 'N/D'], ['Médailles (' + host.year + ')', `${formatNumber(host.medals || 0)}`]]
   });
-  domSel('#dom-event-detail-title', '#event-detail-title').html(`${countryLink} · ${host.city} ${host.year}`);
+  domSel('#dom-event-detail-title', '#event-detail-title').html(`${countryLink} (${host.city} ${host.year})`);
 
   const delLink = wikiLinkHtml({
     href: `../geographie/index.html?season=${state.season}&year=${host.year}&noc=${host.noc}`,
@@ -383,12 +383,12 @@ function renderEventDetail(host) {
     const prof = model.sportProfiles.get(`${state.season}|${host.year}|${item.sport}`);
     return wikiLinkHtml({
       href: `../anatomie/index.html?season=${state.season}&year=${host.year}&sport=${encodeURIComponent(item.sport)}`,
-      text: `${item.sport} (${item.medals} méd. / ${item.count} athl.)`,
+      text: `${item.sport} (${item.medals} méd., ${item.count} athl.)`,
       eyebrow: 'L’anatomie de l’élite',
-      title: `Profil morphologique · ${item.sport} (${host.year})`,
+      title: `Profil physique en ${item.sport} (${host.year})`,
       body: `Comparer l’âge, la taille et le poids des médaillés et participants en ${item.sport}.`,
       metrics: [
-        [`Bilan ${host.noc}`, `${item.medals} méd. · ${item.count} athl.`],
+        [`Bilan ${host.noc}`, `${item.medals} méd., ${item.count} athl.`],
         ['Taille médiane', prof ? `${prof.height.toFixed(0)} cm` : 'N/D'],
         ['Poids médian', prof ? `${prof.weight.toFixed(0)} kg` : 'N/D']
       ]
@@ -397,24 +397,24 @@ function renderEventDetail(host) {
 
   domSel('#dom-event-narrative', '#event-narrative').html(
     `En <strong>${host.year}</strong>, ${countryLink} engage ${delLink} à domicile` +
-    (sportsLinks ? `, avec pour fers de lance ${sportsLinks}` : '') + `.`
+    (sportsLinks ? `, principalement en ${sportsLinks}` : '') + `.`
   );
 
   const chartSel = d3.select(container);
   chartSel.selectAll('svg').remove();
   const svg = chartSel.append('svg').attr('class','event-svg').attr('width',width).attr('height',height).attr('viewBox',`0 0 ${width} ${height}`);
-  svg.append('line').attr('class','host-line').attr('x1',margin.left + x(0)).attr('x2',margin.left + x(0)).attr('y1',margin.top - 12).attr('y2',height - margin.bottom);
+  svg.append('line').attr('class','host-line').attr('x1',margin.left + x(0)).attr('x2',margin.left + x(0)).attr('y1',margin.top - 10).attr('y2',height - margin.bottom);
   panels.forEach(panel => {
     const values = rows.map(row => row[panel.key]).filter(value => value !== null);
     const max = Math.max(1, d3.max(values) || 1);
     const y = d3.scaleLinear().domain([0, max * 1.18]).nice().range([panel.y + panelHeight, panel.y]);
     const plot = svg.append('g');
-    plot.append('g').attr('class','event-grid').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(4).tickSize(-innerWidth).tickFormat(''));
-    plot.append('g').attr('class','event-axis').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(4).tickFormat(panel.tick));
+    plot.append('g').attr('class','event-grid').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(3).tickSize(-innerWidth).tickFormat(''));
+    plot.append('g').attr('class','event-axis').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(3).tickFormat(panel.tick));
     plot.append('text')
       .attr('class','event-panel-link')
       .attr('x',margin.left)
-      .attr('y',panel.y - 14)
+      .attr('y',panel.y - 10)
       .text(panel.title)
       .on('mouseenter', event => showWikiPreview(event, panel.preview))
       .on('mousemove', moveWikiPreview)
@@ -443,12 +443,11 @@ function renderEventDetail(host) {
       });
   });
 
-  // Render Sport Drivers Breakdown
   const breakdown = domSel('#dom-host-sports-breakdown', '#host-sports-breakdown').html('');
   if (host.sportDrivers && host.sportDrivers.length) {
     breakdown.append('div').attr('class', 'host-sports-header').html(
-      `<h3>Disciplines motrices de l’avantage domicile à ${host.city} ${host.year}</h3>` +
-      `<span>Médailles à T comparées à la moyenne des 3 éditions précédentes (T−3 à T−1)</span>`
+      `<h3>Disciplines portant l’effet domicile à ${host.city} ${host.year}</h3>` +
+      `<span>Médailles l’année d’accueil (T) comparées à la moyenne des trois éditions précédentes</span>`
     );
     const grid = breakdown.append('div').attr('class', 'host-sports-grid');
     const maxMed = Math.max(1, d3.max(host.sportDrivers, d => Math.max(d.medT, d.medPrev)) || 1);
@@ -459,12 +458,12 @@ function renderEventDetail(host) {
         href: `../anatomie/index.html?season=${state.season}&year=${host.year}&sport=${encodeURIComponent(d.sport)}`,
         text: d.sport,
         eyebrow: 'L’anatomie de l’élite',
-        title: `${d.sport} · Profil & Podiums (${host.year})`,
-        body: `Analyser le gabarit des médaillés et les bastions nationaux en ${d.sport}.`,
+        title: `${d.sport} (${host.year})`,
+        body: `Analyser le gabarit des médaillés et les nations dominantes en ${d.sport}.`,
         metrics: [
-          [`Médailles ${host.noc} à T`, `${d.medT} (moy. avant : ${d.medPrev.toFixed(1)})`],
-          [`Athlètes ${host.noc} à T`, `${d.athT} (moy. avant : ${d.athPrev.toFixed(1)})`],
-          ['Profil médian mondial', prof ? `${prof.height.toFixed(0)} cm · ${prof.weight.toFixed(0)} kg` : 'N/D']
+          [`Médailles ${host.noc} à T`, `${d.medT} (moyenne avant : ${d.medPrev.toFixed(1)})`],
+          [`Athlètes ${host.noc} à T`, `${d.athT} (moyenne avant : ${d.athPrev.toFixed(1)})`],
+          ['Profil médian mondial', prof ? `${prof.height.toFixed(0)} cm, ${prof.weight.toFixed(0)} kg` : 'N/D']
         ]
       });
       const deltaStr = `${d.medDelta >= 0 ? '+' : ''}${d.medDelta.toFixed(1)} méd.`;
@@ -474,8 +473,8 @@ function renderEventDetail(host) {
       grid.append('div').attr('class', 'host-sport-item').html(
         `<div class="host-sport-top"><strong>${sLink}</strong><span class="host-sport-delta ${d.medDelta > 0 ? 'pos' : 'neutral'}">${deltaStr}</span></div>` +
         `<div class="host-sport-bars">` +
-          `<div class="host-bar-row"><span>À domicile (T)</span><div class="host-bar-track"><div class="host-bar-fill at-t" style="width:${wT}%"></div></div><b>${d.medT} méd.</b></div>` +
-          `<div class="host-bar-row"><span>Moy. T−3..−1</span><div class="host-bar-track"><div class="host-bar-fill before-t" style="width:${wPrev}%"></div></div><span>${d.medPrev.toFixed(1)} méd.</span></div>` +
+          `<div class="host-bar-row"><span>Accueil (T)</span><div class="host-bar-track"><div class="host-bar-fill at-t" style="width:${wT}%"></div></div><b>${d.medT} méd.</b></div>` +
+          `<div class="host-bar-row"><span>Avant (T-3..1)</span><div class="host-bar-track"><div class="host-bar-fill before-t" style="width:${wPrev}%"></div></div><span>${d.medPrev.toFixed(1)} méd.</span></div>` +
         `</div>`
       );
     });
@@ -487,9 +486,9 @@ function renderEventDetail(host) {
 function showTooltip(event, host) {
   const effect = key => host[key] === null ? 'N/D' : `${host[key] >= 0 ? '+' : ''}${host[key].toFixed(1)} %`;
   d3.select('#tooltip').html(
-    `<strong>${host.country} · ${host.year}</strong>` +
+    `<strong>${host.country} (${host.year})</strong>` +
     `<div class="tooltip-row"><span>Ville hôte</span><b>${host.city}</b></div>` +
-    `<div class="tooltip-row"><span>Effet sur la taille de la délégation</span><b>${effect('delegationEffect')}</b></div>` +
+    `<div class="tooltip-row"><span>Effet sur la délégation</span><b>${effect('delegationEffect')}</b></div>` +
     `<div class="tooltip-row"><span>Effet sur les médailles</span><b>${effect('medalsEffect')}</b></div>` +
     `<div class="tooltip-row"><span>PIB / habitant</span><b>${host.gdp ? formatMoney(host.gdp) : 'N/D'}</b></div>` +
     `<div class="tooltip-row"><span>Population</span><b>${host.population ? formatNumber(host.population) : 'N/D'}</b></div>` +

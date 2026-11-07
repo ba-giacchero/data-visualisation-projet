@@ -4,10 +4,10 @@ import { getHostByYear, getHostsByNocOrIso, bindWikiPreviews, wikiLinkHtml, ROOT
 // Synthèse : corrélation richesse-mesure par édition. Vue détail : trajectoires des pays comparés.
 
 // ---------- Réglages (modifiables) ----------
-const L = 900, H = 520;                                   // taille du dessin
-const M = { haut: 40, droite: 30, bas: 50, gauche: 150 }; // marges du nuage (gauche : bande « PIB inconnu »)
+const L = 900, H = 440;                                   // taille du dessin
+const M = { haut: 34, droite: 30, bas: 46, gauche: 150 }; // marges du nuage (gauche : bande « PIB inconnu »)
 const M_TRAJECTOIRE = { ...M, gauche: 60 };               // pas de bande « PIB inconnu » dans la trajectoire
-const H_EVOLUTION = 200;                                  // hauteur du graphique de synthèse
+const H_EVOLUTION = 170;                                  // hauteur du graphique de synthèse
 const M_EVOLUTION = { haut: 15, droite: 30, bas: 30, gauche: 60 };
 const BANDE = { debut: 50, largeur: 70 };                 // bande des pays sans PIB
 const BANDE_ZERO = 36;        // px, bande des valeurs nulles (0 médaille), sous l'axe vertical
@@ -487,7 +487,7 @@ function dessinerTendance(t) {
       .attr("x2", nuage.x(droite[1][0])).attr("y2", y(droite[1][1]));
   }
   d3.select("#correlation").text(c
-    ? `${etat.annee} : corrélation de rang entre richesse et ${mesure().nom} ρ = ${decimal(c.rho)} ` +
+    ? `${etat.annee} : corrélation de rang entre richesse et ${mesure().nom} de ${decimal(c.rho)} ` +
       `(${forceLien(c.rho)}), sur ${c.n} pays au PIB connu.` +
       (mesure().log && mesure().bandeZero ? " La tendance ignore les pays sans médaille, la corrélation non." : "")
     : `${etat.annee} : trop peu de pays au PIB connu pour mesurer un lien.`);
@@ -504,7 +504,7 @@ evolution.svg.append("g").attr("transform", `translate(${M_EVOLUTION.gauche},0)`
   .call(d3.axisLeft(evolution.y).tickValues([-1, -0.5, 0, 0.5, 1]).tickFormat(localeFr.format("~g")));
 evolution.svg.append("text").attr("class", "titre-axe")
   .attr("transform", `translate(14,${M_EVOLUTION.haut}) rotate(-90)`).attr("text-anchor", "end")
-  .text("ρ de Spearman");
+  .text("Corrélation");
 evolution.grille.selectAll("line").data([-0.5, 0, 0.5]).join("line")
   .attr("class", d => (d === 0 ? "zero" : null))
   .attr("x1", M_EVOLUTION.gauche).attr("x2", L - M_EVOLUTION.droite)
@@ -525,9 +525,9 @@ function majEvolution() {
     .attr("r", d => (d.annee === etat.annee ? 7 : 5))
     .classed("courante", d => d.annee === etat.annee)
     .attr("tabindex", 0).attr("role", "button")
-    .attr("aria-label", d => `${d.annee} : rho ${decimal(d.rho)}, ${forceLien(d.rho)}`)
+    .attr("aria-label", d => `${d.annee} : corrélation ${decimal(d.rho)}, ${forceLien(d.rho)}`)
     .on("mouseenter focus", (e, d) => afficherTexteInfobulle(e,
-      `<strong>${d.annee}</strong><br>ρ = ${decimal(d.rho)} (${forceLien(d.rho)})<br>${d.n} pays`))
+      `<strong>${d.annee}</strong><br>Corrélation : ${decimal(d.rho)} (${forceLien(d.rho)})<br>${d.n} pays`))
     .on("mousemove", deplacerInfobulle)
     .on("mouseleave blur", cacherInfobulle)
     .on("click", (e, d) => { arreterLecture(); changerAnnee(d.annee); })
@@ -1029,13 +1029,13 @@ function basculerLecture() {
     if (i >= annees.length - 1) return arreterLecture();
     changerAnnee(annees[i + 1]);
   }, PAS_LECTURE);
-  d3.select("#lecture").text("⏸ Pause").attr("aria-pressed", true);
+  d3.select("#lecture").text("Pause").attr("aria-pressed", true);
 }
 
 function arreterLecture() {
   if (lecture) lecture.stop();
   lecture = null;
-  d3.select("#lecture").text("▶ Lecture").attr("aria-pressed", false);
+  d3.select("#lecture").text("Lecture").attr("aria-pressed", false);
 }
 
 // Recherche (Locate) : liste des noms du fichier chargé ; un pays trouvé est ajouté à la comparaison

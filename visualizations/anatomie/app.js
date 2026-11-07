@@ -17,7 +17,7 @@ let lineSelection;
 
 const formatNumber = d3.format(',');
 const formatValue = (dimension, value) => dimension === 'age' ? `${value.toFixed(1)} ans` : `${value.toFixed(1)} ${dimension === 'height' ? 'cm' : 'kg'}`;
-const dimensionsLabels = { age: 'Âge', height: 'Taille (cm)', weight: 'Poids (kg)' };
+const dimensionsLabels = { age: 'Âge (ans)', height: 'Taille (cm)', weight: 'Poids (kg)' };
 const anatSel = (scoped, fallback) => document.querySelector(scoped) ? d3.select(scoped) : d3.select(fallback);
 const anatNode = (scoped, fallback) => document.querySelector(scoped) || document.querySelector(fallback);
 
@@ -241,12 +241,12 @@ function renderNarrative() {
       href: `../geographie/index.html?season=${state.season}&year=${state.year}&sport=${encodeURIComponent(row.sport)}&metric=medals`,
       text: row.sport,
       eyebrow: 'La carte des groupes sportifs',
-      title: `${row.sport} · ${state.year}`,
+      title: `${row.sport} (${state.year})`,
       body: `Voir la carte mondiale des médailles et des effectifs engagés en ${row.sport}.`,
       metrics: [
         ['Pays représentés', `${row.countriesCount} nations`],
         ['Nations dominantes', topStr || 'N/D'],
-        ['Profil médian', `${row.height.toFixed(0)} cm · ${row.weight.toFixed(0)} kg`]
+        ['Profil médian', `${row.height.toFixed(0)} cm, ${row.weight.toFixed(0)} kg`]
       ]
     });
   };
@@ -258,23 +258,23 @@ function renderNarrative() {
       href: `../economie/index.html?saison=${ecoSaison}&year=${state.year}&country=${encodeURIComponent(top.noc)}`,
       text: `${top.country} (${top.medals} méd.)`,
       eyebrow: 'Le poids de la richesse',
-      title: `${top.country} (${top.noc}) · ${state.year}`,
-      body: `Première nation en ${row.sport}. Explorer le PIB par habitant et l’efficacité olympique de ${top.country}.`,
+      title: `${top.country} (${top.noc}) en ${state.year}`,
+      body: `Première nation en ${row.sport}. Consulter le PIB par habitant et l’efficacité olympique de ${top.country}.`,
       metrics: [
-        ['Bilan en ' + row.sport, `${top.medals} méd. · ${top.count} athl.`],
-        ['Gabarit national médian', `${top.medianHeight.toFixed(0)} cm · ${top.medianWeight.toFixed(0)} kg`]
+        ['Bilan en ' + row.sport, `${top.medals} méd., ${top.count} athl.`],
+        ['Gabarit national médian', `${top.medianHeight.toFixed(0)} cm, ${top.medianWeight.toFixed(0)} kg`]
       ]
     });
   };
 
-  let hostPart = `Lors de l’édition <strong>${state.year}</strong>`;
+  let hostPart = `En <strong>${state.year}</strong>`;
   if (host) {
     const domLink = wikiLinkHtml({
       href: `../domicile/index.html?season=${state.season}&year=${host.year}`,
       text: `${host.city} ${host.year}`,
       eyebrow: 'Trajectoire des pays hôtes',
-      title: `${host.country} · ${host.city} ${host.year}`,
-      body: `Analyser comment l’accueil des Jeux a transformé la délégation et les médailles de ${host.country} entre T−3 et T+3.`,
+      title: `${host.country} à ${host.city} ${host.year}`,
+      body: `Analyser comment l’accueil des Jeux a transformé la délégation et les médailles de ${host.country}.`,
       metrics: [
         ['Pays hôte', `${host.country} (${host.noc})`],
         ['Ville hôte', host.city]
@@ -284,7 +284,7 @@ function renderNarrative() {
       href: `../economie/index.html?saison=${ecoSaison}&year=${host.year}&country=${host.noc}`,
       text: host.country,
       eyebrow: 'Le poids de la richesse',
-      title: `${host.country} · Économie & Jeux ${host.year}`,
+      title: `${host.country} (${host.year})`,
       body: `Comparer le PIB par habitant et l’efficacité de ${host.country} face au reste du monde.`,
       metrics: [
         ['Code CIO', host.noc],
@@ -298,7 +298,7 @@ function renderNarrative() {
   let comparePart = '';
   if (rowA && rowB) {
     const leadA = topCountryLink(rowA);
-    comparePart = `, la discipline ${sportLink(rowA)} (${formatNumber(rowA.count)} ${cohortLabel}, médiane ${rowA.height.toFixed(0)}&nbsp;cm / ${rowA.weight.toFixed(0)}&nbsp;kg${leadA ? `, dominée par ${leadA}` : ''}) se distingue de ${sportLink(rowB)} (${formatNumber(rowB.count)} ${cohortLabel}, ${rowB.height.toFixed(0)}&nbsp;cm / ${rowB.weight.toFixed(0)}&nbsp;kg).`;
+    comparePart = `, ${sportLink(rowA)} (${formatNumber(rowA.count)} ${cohortLabel}, médiane de ${rowA.height.toFixed(0)} cm et ${rowA.weight.toFixed(0)} kg${leadA ? `, dominé par ${leadA}` : ''}) s’oppose à ${sportLink(rowB)} (${formatNumber(rowB.count)} ${cohortLabel}, ${rowB.height.toFixed(0)} cm et ${rowB.weight.toFixed(0)} kg).`;
   }
 
   anatSel('#anat-wiki-narrative', '#wiki-narrative').html(`${hostPart}${comparePart}`);
@@ -315,9 +315,9 @@ function render() {
 function drawChart() {
   const container = anatNode('#anat-chart', '#chart');
   if (!container) return;
-  const width = Math.max(container.clientWidth, 680);
-  const height = 520;
-  const margin = { top:34, right:52, bottom:35, left:52 };
+  const width = Math.max(container.clientWidth, 640);
+  const height = 370;
+  const margin = { top: 30, right: 52, bottom: 26, left: 52 };
   const chartSel = d3.select(container);
   chartSel.selectAll('svg').remove();
   if (!currentRows.length) return;
@@ -330,13 +330,37 @@ function drawChart() {
   };
   dimensions = Object.keys(dimensionsLabels);
   const path = row => d3.line()(dimensions.map(dimension => [x(dimension), scales[dimension](row[dimension])]));
+
   const plot = svg.append('g');
-  plot.selectAll('.sport-line').data(currentRows, d => d.sport).join('path')
+  const groups = plot.selectAll('.sport-group')
+    .data(currentRows, d => d.sport)
+    .join('g')
+    .attr('class', 'sport-group');
+
+  // Ligne visible
+  groups.append('path')
     .attr('class', row => lineClass(row))
+    .attr('d', path);
+
+  // Hitbox élargie (18px) transparente pour un survol et un clic faciles
+  groups.append('path')
+    .attr('class', 'sport-hit')
     .attr('d', path)
-    .on('mouseenter', (event, row) => showTooltip(event, row))
+    .attr('fill', 'none')
+    .attr('stroke', 'transparent')
+    .attr('stroke-width', 18)
+    .style('pointer-events', 'stroke')
+    .style('cursor', 'pointer')
+    .on('mouseenter', function(event, row) {
+      d3.select(this.parentNode). raise().select('.sport-line').classed('hovered', true);
+      plot.selectAll('.selected-group').raise();
+      showTooltip(event, row);
+    })
     .on('mousemove', moveTooltip)
-    .on('mouseleave', () => d3.select('#tooltip').classed('visible', false))
+    .on('mouseleave', function() {
+      d3.select(this.parentNode).select('.sport-line').classed('hovered', false);
+      d3.select('#tooltip').classed('visible', false);
+    })
     .on('click', (event, row) => {
       if (event.shiftKey || event.altKey) {
         state.selected[1] = row.sport;
@@ -350,11 +374,15 @@ function drawChart() {
       anatSel('#anat-sport-b', '#sport-b').property('value', state.selected[1]);
       render();
     });
-  plot.selectAll('.selected-a, .selected-b').raise();
+
+  groups.classed('selected-group', row => row.sport === state.selected[0] || row.sport === state.selected[1]);
+  plot.selectAll('.selected-group').raise();
+  lineSelection = plot.selectAll('.sport-line');
+
   dimensions.forEach(dimension => {
-    const axis = plot.append('g').attr('class', 'axis').attr('transform', `translate(${x(dimension)},0)`).call(d3.axisLeft(scales[dimension]).ticks(7));
-    axis.append('text').attr('class', 'axis-title').attr('y', margin.top - 17).attr('text-anchor', 'middle').text(dimensionsLabels[dimension]);
-    if (dimension === 'height') addBrush(axis, x(dimension));
+    const axis = plot.append('g').attr('class', 'axis').attr('transform', `translate(${x(dimension)},0)`).call(d3.axisLeft(scales[dimension]).ticks(6));
+    axis.append('text').attr('class', 'axis-title').attr('y', margin.top - 14).attr('text-anchor', 'middle').text(dimensionsLabels[dimension]);
+    if (dimension === 'height') addBrush(axis, margin.top, height - margin.bottom);
   });
   updateSelectionLabel();
 }
@@ -367,21 +395,25 @@ function lineClass(row) {
   return classes.join(' ');
 }
 
-function addBrush(axis) {
-  const brush = d3.brushY().extent([[-12, 34], [12, 485]]).on('brush end', event => {
-    if (!event.selection) { state.brush = null; } else { state.brush = event.selection.map(scales.height.invert).sort(d3.ascending); }
-    lineSelection.attr('class', lineClass); updateSelectionLabel();
+function addBrush(axis, topY, bottomY) {
+  const brush = d3.brushY().extent([[-14, topY], [14, bottomY]]).on('brush end', event => {
+    if (!event.selection) {
+      state.brush = null;
+    } else {
+      state.brush = event.selection.map(scales.height.invert).sort(d3.ascending);
+    }
+    if (lineSelection) lineSelection.attr('class', lineClass);
+    updateSelectionLabel();
   });
   const brushGroup = axis.append('g').attr('class', 'brush').call(brush);
   if (state.brush) brushGroup.call(brush.move, state.brush.map(scales.height));
-  lineSelection = axis.ownerSVGElement ? d3.select(axis.node().parentNode).selectAll('.sport-line') : d3.selectAll('.sport-line');
 }
 
 function updateSelectionLabel() {
   anatSel('#anat-selection-label', '#selection-label').text(
     state.brush
-      ? `Taille sélectionnée : ${state.brush[0].toFixed(0)} à ${state.brush[1].toFixed(0)} cm · ${currentRows.filter(row => row.height >= state.brush[0] && row.height <= state.brush[1]).length} sports concernés`
-      : 'Cliquez sur une courbe pour l’analyser en détail (2e clic : scroller vers la carte).'
+      ? `Taille filtrée : ${state.brush[0].toFixed(0)} à ${state.brush[1].toFixed(0)} cm (${currentRows.filter(row => row.height >= state.brush[0] && row.height <= state.brush[1]).length} sports)`
+      : 'Survolez ou cliquez sur une courbe pour comparer un sport (Maj+clic pour le second sport).'
   );
 }
 
@@ -431,21 +463,21 @@ function renderDetailPanel() {
     });
 
     card.append('div').attr('class', 'sport-card-header').html(
-      `<h3>${titleHtml}</h3><span class="sport-card-subtitle">${formatNumber(row.totalMedalists)} médaillés / ${formatNumber(row.totalAthletes)} athlètes</span>`
+      `<h3>${titleHtml}</h3><span class="sport-card-subtitle">${formatNumber(row.totalMedalists)} médaillés sur ${formatNumber(row.totalAthletes)} athlètes</span>`
     );
 
     card.append('div').attr('class', 'morpho-legend').html(
-      `<span><i class="morpho-dot medalist"></i>Médaillés (Q1–Médiane–Q3)</span>` +
-      `<span><i class="morpho-dot participant"></i>Non-médaillés (Q1–Médiane–Q3)</span>`
+      `<span><i class="morpho-dot medalist"></i>Médaillés (25 % à 75 % et médiane)</span>` +
+      `<span><i class="morpho-dot participant"></i>Non-médaillés (25 % à 75 % et médiane)</span>`
     );
 
-    const W = 460, H = 162;
+    const W = 460, H = 152;
     const trackLeft = 108, trackRight = W - 28;
     const svg = card.append('svg').attr('class', 'morpho-svg').attr('viewBox', `0 0 ${W} ${H}`);
     const metrics = [
-      { key: 'height', label: 'Taille (cm)', unit: 'cm', y: 32 },
-      { key: 'weight', label: 'Poids (kg)', unit: 'kg', y: 86 },
-      { key: 'age', label: 'Âge (ans)', unit: 'ans', y: 140 }
+      { key: 'height', label: 'Taille (cm)', unit: 'cm', y: 30 },
+      { key: 'weight', label: 'Poids (kg)', unit: 'kg', y: 80 },
+      { key: 'age', label: 'Âge (ans)', unit: 'ans', y: 130 }
     ];
 
     metrics.forEach(m => {
@@ -477,38 +509,38 @@ function renderDetailPanel() {
           .attr('fill', mainColor).attr('stroke', 'var(--panel)').attr('stroke-width', 1.5);
         const labelX = Math.max(trackLeft + 24, Math.min(trackRight - 24, x(med.med)));
         g.append('text')
-          .attr('x', labelX).attr('y', m.y - 14)
+          .attr('x', labelX).attr('y', m.y - 13)
           .attr('text-anchor', 'middle').attr('font-size', 10.5).attr('font-weight', 700).attr('fill', 'var(--ink)')
           .text(`${med.med.toFixed(0)} ${m.unit}`);
       }
     });
 
-    card.append('div').attr('class', 'bastions-title').text(`Bastions nationaux en ${row.sport} (${state.year})`);
+    card.append('div').attr('class', 'bastions-title').text(`Principales nations en ${row.sport} (${state.year})`);
     const list = card.append('div').attr('class', 'bastions-list');
     row.topCountries.slice(0, 4).forEach(c => {
       const cGeoLink = wikiLinkHtml({
         href: `../geographie/index.html?season=${state.season}&year=${state.year}&sport=${encodeURIComponent(row.sport)}&noc=${c.noc}`,
         text: `${c.country} (${c.noc})`,
-        eyebrow: 'Profil géographique & sportif',
+        eyebrow: 'La carte des groupes sportifs',
         title: `${c.country} en ${row.sport} (${state.year})`,
         body: `Ouvrir la répartition sportive complète de ${c.country} sur la carte mondiale.`,
         metrics: [
           ['Médailles dans ce sport', `${c.medals} médailles`],
           ['Athlètes engagés', `${c.count} athlètes`],
-          ['Gabarit national médian', `${c.medianHeight.toFixed(0)} cm · ${c.medianWeight.toFixed(0)} kg`]
+          ['Gabarit national médian', `${c.medianHeight.toFixed(0)} cm, ${c.medianWeight.toFixed(0)} kg`]
         ]
       });
       const cEcoLink = wikiLinkHtml({
         href: `../economie/index.html?saison=${ecoSaison}&year=${state.year}&country=${c.noc}`,
         text: `${c.medals} méd.`,
         eyebrow: 'Le poids de la richesse',
-        title: `Richesse & Efficacité · ${c.country}`,
+        title: `Richesse et efficacité de ${c.country}`,
         body: `Situer la performance de ${c.country} par rapport à son PIB par habitant.`,
         metrics: [['Médailles en ' + row.sport, `${c.medals}`], ['Effectif', `${c.count} athlètes`]]
       });
       list.append('div').attr('class', 'bastion-row').html(
         `<span class="bastion-country">${cGeoLink}</span>` +
-        `<span class="bastion-stats">${cEcoLink} · ${c.count} athl. · <b>${c.medianHeight.toFixed(0)} cm / ${c.medianWeight.toFixed(0)} kg</b></span>`
+        `<span class="bastion-stats">${cEcoLink}, ${c.count} athl., <b>${c.medianHeight.toFixed(0)} cm / ${c.medianWeight.toFixed(0)} kg</b></span>`
       );
     });
   });
@@ -526,7 +558,7 @@ function showTooltip(event, row) {
     `<div class="tooltip-row"><span>Taille médiane</span><b>${formatValue('height', row.height)}</b></div>` +
     `<div class="tooltip-row"><span>Poids médian</span><b>${formatValue('weight', row.weight)}</b></div>` +
     `<div class="tooltip-row"><span>Médiane des médaillés</span><b>${medH}</b></div>` +
-    `<div class="tooltip-row"><span>Bastions (${row.countriesCount} pays)</span><b>${topStr}</b></div>`
+    `<div class="tooltip-row"><span>Premières nations</span><b>${topStr}</b></div>`
   ).classed('visible', true);
   moveTooltip(event);
 }
@@ -542,7 +574,7 @@ getOlympicRows()
   .then(rows => initialize(rows))
   .catch(error => {
     console.error(error);
-    anatSel('#anat-chart', '#chart').text('Impossible de charger le dataset olympique.');
+    anatSel('#anat-chart', '#chart').text('Impossible de charger les données olympiques.');
   });
 
 window.addEventListener('resize', () => { if (rawRecords.length) drawChart(); });
