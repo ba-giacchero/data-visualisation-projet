@@ -1,6 +1,5 @@
-import { getHostByYear, bindWikiPreviews, wikiLinkHtml } from '../shared-links.js';
+import { getHostByYear, bindWikiPreviews, wikiLinkHtml, getOlympicRows, registerVizController, navigateToViz } from '../shared-links.js';
 
-const OLYMPIC_FILE = '../../120 years of Olympic history/athlete_events.csv';
 const state = {
   season: 'Summer',
   year: 2016,
@@ -19,9 +18,10 @@ let lineSelection;
 const formatNumber = d3.format(',');
 const formatValue = (dimension, value) => dimension === 'age' ? `${value.toFixed(1)} ans` : `${value.toFixed(1)} ${dimension === 'height' ? 'cm' : 'kg'}`;
 const dimensionsLabels = { age: 'Âge', height: 'Taille (cm)', weight: 'Poids (kg)' };
+const anatSel = (scoped, fallback) => document.querySelector(scoped) ? d3.select(scoped) : d3.select(fallback);
+const anatNode = (scoped, fallback) => document.querySelector(scoped) || document.querySelector(fallback);
 
 function prepareRaw(rows) {
-  const seenAthlete = new Set();
   const records = [];
   rows.forEach(row => {
     const year = +row.Year;
@@ -29,7 +29,6 @@ function prepareRaw(rows) {
     if (row.Age === 'NA' || row.Height === 'NA' || row.Weight === 'NA') return;
     const isMedalist = Boolean(row.Medal && row.Medal !== 'NA');
     const dedupKey = `${row.Season}|${year}|${row.Sport}|${row.ID}`;
-    // Keep unique athlete per sport & edition, prioritizing medalist status if they won in any event of that sport
     records.push({
       key: dedupKey,
       season: row.Season,
@@ -60,7 +59,6 @@ function computeProfiles() {
     (state.sex === 'ALL' || r.sex === state.sex)
   );
 
-  // Deduplicate athletes per sport (keeping medalist=true if they won at least one medal in that sport)
   const bySportAthlete = new Map();
   const sportMedalsByNoc = new Map();
 
@@ -88,7 +86,6 @@ function computeProfiles() {
     const activeSet = state.cohort === 'medalists' ? medalists : athletes;
     if (!activeSet.length) continue;
 
-    // Country breakdown for this sport
     const byNoc = d3.group(athletes, a => a.noc);
     const cList = [...byNoc.entries()].map(([noc, list]) => ({
       noc,
@@ -132,29 +129,33 @@ function computeProfiles() {
   return profiles.sort((a, b) => d3.descending(a.count, b.count));
 }
 
-function applyUrlParams() {
-  const params = new URLSearchParams(window.location.search);
-  const seasonParam = params.get('season') || params.get('saison');
+function applyParams(params = {}) {
+  const seasonParam = params.season || params.saison;
   if (seasonParam === 'Winter' || seasonParam === 'hiver') state.season = 'Winter';
   else if (seasonParam === 'Summer' || seasonParam === 'ete') state.season = 'Summer';
 
   const years = seasonYears(state.season);
-  const y = +params.get('year');
+  const y = +params.year;
   if (y && years.includes(y)) state.year = y;
-  else state.year = years[years.length - 1];
+  else if (!years.includes(state.year)) state.year = years[years.length - 1];
 
-  const sexParam = params.get('sex');
-  if (sexParam && ['ALL', 'F', 'M'].includes(sexParam.toUpperCase())) state.sex = sexParam.toUpperCase();
+  const sexParam = params.sex;
+  if (sexParam && ['ALL', 'F', 'M'].includes(String(sexParam).toUpperCase())) state.sex = String(sexParam).toUpperCase();
 
-  const cohortParam = params.get('cohort');
+  const cohortParam = params.cohort;
   if (cohortParam && ['all', 'medalists'].includes(cohortParam)) state.cohort = cohortParam;
 
-  const nocParam = params.get('noc');
+  const nocParam = params.noc;
   if (nocParam) state.focusNoc = nocParam.toUpperCase();
 
+  anatSel('#anat-season', '#season').property('value', state.season);
+  anatSel('#anat-sex', '#sex').property('value', state.sex);
+  anatSel('#anat-cohort', '#cohort').property('value', state.cohort);
+  updateYearMenu();
+
   const available = computeProfiles().map(r => r.sport);
-  const s = params.get('sport');
-  const s2 = params.get('sportB');
+  const s = params.sport ? decodeURIComponent(params.sport) : null;
+  const s2 = params.sportB ? decodeURIComponent(params.sportB) : null;
   if (s && available.includes(s)) {
     state.selected[0] = s;
     if (s2 && available.includes(s2) && s2 !== s) {
@@ -162,57 +163,60 @@ function applyUrlParams() {
     } else if (state.selected[1] === s || !available.includes(state.selected[1])) {
       state.selected[1] = available.find(item => item !== s) || state.selected[1];
     }
-  } else if (state.season === 'Winter') {
+  } else if (state.season === 'Winter' && !available.includes(state.selected[0])) {
     state.selected = [available[0] || 'Ice Hockey', available[1] || 'Alpine Skiing'];
   }
+  updateSportMenus();
+  render();
 }
 
 function updateYearMenu() {
   const years = seasonYears(state.season);
   if (!years.includes(state.year)) state.year = years[years.length - 1];
-  d3.select('#year').selectAll('option').data(years).join('option').attr('value', d => d).text(d => d);
-  d3.select('#year').property('value', state.year);
+  const sel = anatSel('#anat-year', '#year');
+  sel.selectAll('option').data(years).join('option').attr('value', d => d).text(d => d);
+  sel.property('value', state.year);
 }
 
 function initialize(rows) {
   rawRecords = prepareRaw(rows);
-  applyUrlParams();
 
-  d3.select('#season').property('value', state.season).on('change', event => {
+  anatSel('#anat-season', '#season').property('value', state.season).on('change', event => {
     state.season = event.target.value;
     state.brush = null;
     updateYearMenu();
     updateSportMenus();
     render();
   });
-  updateYearMenu();
-  d3.select('#year').on('change', event => { state.year = +event.target.value; updateSportMenus(); render(); });
-  d3.select('#sex').property('value', state.sex).on('change', event => { state.sex = event.target.value; updateSportMenus(); render(); });
-  d3.select('#cohort').property('value', state.cohort).on('change', event => { state.cohort = event.target.value; updateSportMenus(); render(); });
+  anatSel('#anat-year', '#year').on('change', event => { state.year = +event.target.value; updateSportMenus(); render(); });
+  anatSel('#anat-sex', '#sex').property('value', state.sex).on('change', event => { state.sex = event.target.value; updateSportMenus(); render(); });
+  anatSel('#anat-cohort', '#cohort').property('value', state.cohort).on('change', event => { state.cohort = event.target.value; updateSportMenus(); render(); });
 
-  d3.select('#reset').on('click', () => {
+  anatSel('#anat-reset', '#reset').on('click', () => {
     state.season = 'Summer';
     state.year = 2016;
     state.sex = 'ALL';
     state.cohort = 'all';
     state.selected = ['Athletics', 'Gymnastics'];
     state.brush = null;
-    d3.select('#season').property('value', state.season);
-    d3.select('#sex').property('value', state.sex);
-    d3.select('#cohort').property('value', state.cohort);
+    anatSel('#anat-season', '#season').property('value', state.season);
+    anatSel('#anat-sex', '#sex').property('value', state.sex);
+    anatSel('#anat-cohort', '#cohort').property('value', state.cohort);
     updateYearMenu();
     updateSportMenus();
     render();
   });
-  updateSportMenus();
-  render();
+
+  const urlParams = Object.fromEntries(new URLSearchParams(window.location.search).entries());
+  applyParams(urlParams);
+  registerVizController('anatomie', applyParams);
 }
 
 function updateSportMenus() {
   const profiles = computeProfiles();
   const sports = profiles.map(row => row.sport);
-  ['#sport-a', '#sport-b'].forEach((selector, index) => {
-    const select = d3.select(selector);
+  [['#anat-sport-a', '#sport-a'], ['#anat-sport-b', '#sport-b']].forEach(([scoped, fallback], index) => {
+    const select = anatSel(scoped, fallback);
     select.selectAll('option').data(sports).join('option').attr('value', d => d).text(d => d);
     if (!sports.includes(state.selected[index])) {
       state.selected[index] = sports.find(s => s !== state.selected[1 - index]) || sports[index] || '';
@@ -297,8 +301,8 @@ function renderNarrative() {
     comparePart = `, la discipline ${sportLink(rowA)} (${formatNumber(rowA.count)} ${cohortLabel}, médiane ${rowA.height.toFixed(0)}&nbsp;cm / ${rowA.weight.toFixed(0)}&nbsp;kg${leadA ? `, dominée par ${leadA}` : ''}) se distingue de ${sportLink(rowB)} (${formatNumber(rowB.count)} ${cohortLabel}, ${rowB.height.toFixed(0)}&nbsp;cm / ${rowB.weight.toFixed(0)}&nbsp;kg).`;
   }
 
-  d3.select('#wiki-narrative').html(`${hostPart}${comparePart}`);
-  bindWikiPreviews(document.querySelector('#wiki-narrative'));
+  anatSel('#anat-wiki-narrative', '#wiki-narrative').html(`${hostPart}${comparePart}`);
+  bindWikiPreviews(anatNode('#anat-wiki-narrative', '#wiki-narrative'));
 }
 
 function render() {
@@ -309,13 +313,15 @@ function render() {
 }
 
 function drawChart() {
-  const container = document.querySelector('#chart');
-  const width = Math.max(container.clientWidth, 760);
+  const container = anatNode('#anat-chart', '#chart');
+  if (!container) return;
+  const width = Math.max(container.clientWidth, 680);
   const height = 520;
   const margin = { top:34, right:52, bottom:35, left:52 };
-  d3.select('#chart').selectAll('svg').remove();
+  const chartSel = d3.select(container);
+  chartSel.selectAll('svg').remove();
   if (!currentRows.length) return;
-  const svg = d3.select('#chart').append('svg').attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
+  const svg = chartSel.append('svg').attr('class', 'parallel-svg').attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
   const x = d3.scalePoint().domain(Object.keys(dimensionsLabels)).range([margin.left, width - margin.right]);
   scales = {
     age: d3.scaleLinear().domain([d3.min(currentRows, d => d.age) - 1, d3.max(currentRows, d => d.age) + 1]).nice().range([height - margin.bottom, margin.top]),
@@ -335,13 +341,13 @@ function drawChart() {
       if (event.shiftKey || event.altKey) {
         state.selected[1] = row.sport;
       } else if (state.selected[0] === row.sport) {
-        window.location.href = `../geographie/index.html?season=${state.season}&year=${state.year}&sport=${encodeURIComponent(row.sport)}`;
+        navigateToViz('geographie', { season: state.season, year: state.year, sport: row.sport });
         return;
       } else {
         state.selected[0] = row.sport;
       }
-      d3.select('#sport-a').property('value', state.selected[0]);
-      d3.select('#sport-b').property('value', state.selected[1]);
+      anatSel('#anat-sport-a', '#sport-a').property('value', state.selected[0]);
+      anatSel('#anat-sport-b', '#sport-b').property('value', state.selected[1]);
       render();
     });
   plot.selectAll('.selected-a, .selected-b').raise();
@@ -372,7 +378,21 @@ function addBrush(axis) {
 }
 
 function updateSelectionLabel() {
-  d3.select('#selection-label').text(state.brush ? `Taille sélectionnée : ${state.brush[0].toFixed(0)} à ${state.brush[1].toFixed(0)} cm · ${currentRows.filter(row => row.height >= state.brush[0] && row.height <= state.brush[1]).length} sports concernés` : 'Cliquez sur une courbe pour l’analyser en détail (2e clic : ouvrir sur la carte).');
+  anatSel('#anat-selection-label', '#selection-label').text(
+    state.brush
+      ? `Taille sélectionnée : ${state.brush[0].toFixed(0)} à ${state.brush[1].toFixed(0)} cm · ${currentRows.filter(row => row.height >= state.brush[0] && row.height <= state.brush[1]).length} sports concernés`
+      : 'Cliquez sur une courbe pour l’analyser en détail (2e clic : scroller vers la carte).'
+  );
+}
+
+function paddedDomain(values, defaultMin, defaultMax, minPad) {
+  const valid = values.filter(v => v != null && !Number.isNaN(v));
+  if (!valid.length) return [defaultMin, defaultMax];
+  const minVal = d3.min(valid);
+  const maxVal = d3.max(valid);
+  const span = Math.max(1, maxVal - minVal);
+  const pad = Math.max(minPad, span * 0.25);
+  return [minVal - pad, maxVal + pad];
 }
 
 function renderDetailPanel() {
@@ -383,17 +403,16 @@ function renderDetailPanel() {
   ].filter(Boolean);
 
   const ecoSaison = state.season === 'Winter' ? 'hiver' : 'ete';
-  const grid = d3.select('#sport-detail-grid').html('');
+  const grid = anatSel('#anat-sport-detail-grid', '#sport-detail-grid').html('');
 
-  // Shared domains across the 2 compared sports so visual comparison is truthful
-  const allHeights = selectedRows.flatMap(r => [r.medalistStats?.height.q1, r.medalistStats?.height.q3, r.nonMedalistStats?.height.q1, r.nonMedalistStats?.height.q3, r.height]).filter(v => v != null);
-  const allWeights = selectedRows.flatMap(r => [r.medalistStats?.weight.q1, r.medalistStats?.weight.q3, r.nonMedalistStats?.weight.q1, r.nonMedalistStats?.weight.q3, r.weight]).filter(v => v != null);
-  const allAges = selectedRows.flatMap(r => [r.medalistStats?.age.q1, r.medalistStats?.age.q3, r.nonMedalistStats?.age.q1, r.nonMedalistStats?.age.q3, r.age]).filter(v => v != null);
+  const allHeights = selectedRows.flatMap(r => [r.medalistStats?.height.q1, r.medalistStats?.height.q3, r.nonMedalistStats?.height.q1, r.nonMedalistStats?.height.q3, r.height]);
+  const allWeights = selectedRows.flatMap(r => [r.medalistStats?.weight.q1, r.medalistStats?.weight.q3, r.nonMedalistStats?.weight.q1, r.nonMedalistStats?.weight.q3, r.weight]);
+  const allAges = selectedRows.flatMap(r => [r.medalistStats?.age.q1, r.medalistStats?.age.q3, r.nonMedalistStats?.age.q1, r.nonMedalistStats?.age.q3, r.age]);
 
   const domainMap = {
-    height: [Math.floor((d3.min(allHeights) || 150) - 4), Math.ceil((d3.max(allHeights) || 200) + 4)],
-    weight: [Math.floor((d3.min(allWeights) || 45) - 4), Math.ceil((d3.max(allWeights) || 105) + 4)],
-    age: [Math.floor((d3.min(allAges) || 16) - 2), Math.ceil((d3.max(allAges) || 35) + 2)]
+    height: paddedDomain(allHeights, 150, 200, 6),
+    weight: paddedDomain(allWeights, 45, 105, 6),
+    age: paddedDomain(allAges, 16, 35, 3)
   };
 
   selectedRows.forEach((row, idx) => {
@@ -420,22 +439,21 @@ function renderDetailPanel() {
       `<span><i class="morpho-dot participant"></i>Non-médaillés (Q1–Médiane–Q3)</span>`
     );
 
-    // Draw D3 SVG Dumbbell / IQR Box comparison between Medalists and Non-medalists
     const W = 460, H = 162;
+    const trackLeft = 108, trackRight = W - 28;
     const svg = card.append('svg').attr('class', 'morpho-svg').attr('viewBox', `0 0 ${W} ${H}`);
     const metrics = [
-      { key: 'height', label: 'Taille (cm)', unit: 'cm', y: 30 },
-      { key: 'weight', label: 'Poids (kg)', unit: 'kg', y: 84 },
-      { key: 'age', label: 'Âge (ans)', unit: 'ans', y: 138 }
+      { key: 'height', label: 'Taille (cm)', unit: 'cm', y: 32 },
+      { key: 'weight', label: 'Poids (kg)', unit: 'kg', y: 86 },
+      { key: 'age', label: 'Âge (ans)', unit: 'ans', y: 140 }
     ];
 
     metrics.forEach(m => {
-      const x = d3.scaleLinear().domain(domainMap[m.key]).range([105, W - 24]);
+      const x = d3.scaleLinear().domain(domainMap[m.key]).range([trackLeft, trackRight]).clamp(true);
       const g = svg.append('g');
       g.append('text').attr('x', 0).attr('y', m.y + 4).attr('fill', 'var(--ink)').attr('font-size', 12).attr('font-weight', 600).text(m.label);
-      g.append('line').attr('x1', 105).attr('x2', W - 24).attr('y1', m.y).attr('y2', m.y).attr('stroke', '#dedfd7').attr('stroke-dasharray', '2 3');
+      g.append('line').attr('x1', trackLeft).attr('x2', trackRight).attr('y1', m.y).attr('y2', m.y).attr('stroke', '#dedfd7').attr('stroke-dasharray', '2 3');
 
-      // Non-medalists bar (bottom offset +6)
       const nm = row.nonMedalistStats?.[m.key];
       if (nm) {
         g.append('line')
@@ -447,7 +465,6 @@ function renderDetailPanel() {
           .attr('fill', '#68736d').attr('stroke', 'var(--panel)').attr('stroke-width', 1.5);
       }
 
-      // Medalists bar (top offset -6)
       const med = row.medalistStats?.[m.key];
       if (med) {
         const mainColor = idx === 0 ? 'var(--accent)' : 'var(--teal)';
@@ -458,14 +475,14 @@ function renderDetailPanel() {
         g.append('circle')
           .attr('cx', x(med.med)).attr('cy', m.y - 6).attr('r', 5)
           .attr('fill', mainColor).attr('stroke', 'var(--panel)').attr('stroke-width', 1.5);
+        const labelX = Math.max(trackLeft + 24, Math.min(trackRight - 24, x(med.med)));
         g.append('text')
-          .attr('x', x(med.med)).attr('y', m.y - 14)
+          .attr('x', labelX).attr('y', m.y - 14)
           .attr('text-anchor', 'middle').attr('font-size', 10.5).attr('font-weight', 700).attr('fill', 'var(--ink)')
           .text(`${med.med.toFixed(0)} ${m.unit}`);
       }
     });
 
-    // Top nations in this sport
     card.append('div').attr('class', 'bastions-title').text(`Bastions nationaux en ${row.sport} (${state.year})`);
     const list = card.append('div').attr('class', 'bastions-list');
     row.topCountries.slice(0, 4).forEach(c => {
@@ -490,13 +507,13 @@ function renderDetailPanel() {
         metrics: [['Médailles en ' + row.sport, `${c.medals}`], ['Effectif', `${c.count} athlètes`]]
       });
       list.append('div').attr('class', 'bastion-row').html(
-        `<span>${cGeoLink}</span>` +
+        `<span class="bastion-country">${cGeoLink}</span>` +
         `<span class="bastion-stats">${cEcoLink} · ${c.count} athl. · <b>${c.medianHeight.toFixed(0)} cm / ${c.medianWeight.toFixed(0)} kg</b></span>`
       );
     });
   });
 
-  bindWikiPreviews(document.querySelector('#sport-detail'));
+  bindWikiPreviews(anatNode('#anat-sport-detail', '#sport-detail'));
 }
 
 function showTooltip(event, row) {
@@ -513,7 +530,19 @@ function showTooltip(event, row) {
   ).classed('visible', true);
   moveTooltip(event);
 }
-function moveTooltip(event) { const node = document.querySelector('#tooltip'); const left = Math.min(event.clientX + 16, window.innerWidth - node.offsetWidth - 14); const top = Math.min(event.clientY + 16, window.innerHeight - node.offsetHeight - 14); d3.select('#tooltip').style('left', `${Math.max(8,left)}px`).style('top', `${Math.max(8,top)}px`); }
 
-fetch(OLYMPIC_FILE).then(response => response.text()).then(text => initialize(d3.csvParse(text))).catch(error => { console.error(error); d3.select('#chart').text('Impossible de charger le dataset olympique.'); });
+function moveTooltip(event) {
+  const node = document.querySelector('#tooltip');
+  const left = Math.min(event.clientX + 16, window.innerWidth - node.offsetWidth - 14);
+  const top = Math.min(event.clientY + 16, window.innerHeight - node.offsetHeight - 14);
+  d3.select('#tooltip').style('left', `${Math.max(8, left)}px`).style('top', `${Math.max(8, top)}px`);
+}
+
+getOlympicRows()
+  .then(rows => initialize(rows))
+  .catch(error => {
+    console.error(error);
+    anatSel('#anat-chart', '#chart').text('Impossible de charger le dataset olympique.');
+  });
+
 window.addEventListener('resize', () => { if (rawRecords.length) drawChart(); });

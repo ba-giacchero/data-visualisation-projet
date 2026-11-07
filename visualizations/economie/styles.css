@@ -84,7 +84,7 @@ svg text { font-family: 'DM Sans', sans-serif; }
 .tendance { stroke: var(--ink); stroke-width: 2; stroke-opacity: .6; pointer-events: none; }
 
 /* Nuage : gris par défaut, couleur réservée aux pays comparés (posée par app.js) */
-.point circle { fill: #9e9e9e; fill-opacity: .6; stroke: #fff; stroke-width: .5; cursor: pointer; pointer-events: all; } /* all : l'intérieur des cercles creux (sans PIB) capte aussi la souris */
+.point circle { fill: #9e9e9e; fill-opacity: .6; stroke: #fff; stroke-width: .5; cursor: pointer; pointer-events: all; }
 .point.sans-pib circle { fill: none; stroke: #9e9e9e; stroke-width: 1.2; }
 .point.selectionne circle { fill-opacity: .95; stroke: var(--ink); stroke-width: 1; }
 .point.sans-pib.selectionne circle { stroke-width: 2.5; }
@@ -120,7 +120,6 @@ svg text { font-family: 'DM Sans', sans-serif; }
 #detail-info strong { color: var(--ink); }
 #detail-info .pastille { margin-right: 6px; }
 #detail-note { color: var(--muted); font-size: 12px; }
-/* Couleur de chaque pays : style « color » de son groupe, reprise par currentColor */
 .trace { fill: none; stroke: currentColor; stroke-width: 2; }
 .trace-lacunes { fill: none; stroke: currentColor; stroke-opacity: .5; stroke-width: 1.5; stroke-dasharray: 2 4; }
 .point-courant, .etape circle { fill: currentColor; }
@@ -148,7 +147,7 @@ td .pastille { margin-right: 6px; }
 #methode strong { color: var(--ink); }
 
 /* Infobulle, dans le style des autres visualisations */
-#infobulle { position: absolute; z-index: 4; display: none; max-width: 330px; padding: 12px 14px; border: 1px solid var(--ink); background: var(--ink); box-shadow: 5px 5px 0 var(--accent); color: #dce3dc; font-size: 12px; line-height: 1.7; pointer-events: none; }
+#infobulle { position: fixed; z-index: 30; display: none; max-width: 330px; padding: 12px 14px; border: 1px solid var(--ink); background: var(--ink); box-shadow: 5px 5px 0 var(--accent); color: #dce3dc; font-size: 12px; line-height: 1.7; pointer-events: none; }
 #infobulle strong { color: var(--yellow); font: 600 15px 'Space Grotesk', sans-serif; }
 
 @media (max-width: 850px) {

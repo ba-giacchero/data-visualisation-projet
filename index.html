@@ -1,13 +1,520 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="0; url=visualizations/geographie/index.html">
-  <title>Visualisations olympiques</title>
-  <script>
-    window.location.replace("visualizations/geographie/index.html" + window.location.search);
-  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>La Fabrique des Nations Olympiques — Exploration Visuelle Unifiée</title>
+  <link rel="stylesheet" href="styles-unified.css" />
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
 </head>
-<body></body>
+<body>
+  <!-- Barre de navigation sticky entre les chapitres de la vue unique -->
+  <nav class="chapter-nav" aria-label="Navigation par chapitre">
+    <div class="chapter-nav-inner">
+      <a href="#sec-meta" class="chapter-brand">
+        <span class="chapter-brand-dot"></span>
+        <span>LA FABRIQUE OLYMPIQUE · VUE UNIFIÉE</span>
+      </a>
+      <div class="chapter-links">
+        <a href="#sec-meta" class="chapter-link"><strong>00</strong> Méta-Question</a>
+        <a href="#sec-geographie" class="chapter-link"><strong>01</strong> Géographie &amp; Spécialisation</a>
+        <a href="#sec-economie" class="chapter-link"><strong>02</strong> Richesse &amp; Efficacité</a>
+        <a href="#sec-domicile" class="chapter-link"><strong>03</strong> Avantage à Domicile</a>
+        <a href="#sec-anatomie" class="chapter-link"><strong>04</strong> Anatomie de l’Élite</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- =====================================================================
+       00 · EN-TÊTE : MÉTA-QUESTION DIRECTRICE DU PROJET
+       ===================================================================== -->
+  <header id="sec-meta" class="meta-hero">
+    <div class="meta-question-card">
+      <span class="meta-badge">MÉTA-QUESTION DIRECTRICE DU PROJET</span>
+      <h1>« Qu’est-ce qui fabrique une puissance olympique : le poids de la richesse, le tremplin du pays hôte, la spécialisation géographique ou la sélection morphologique des corps ? »</h1>
+      <p class="meta-lead">
+        Une médaille olympique n’est jamais le seul produit d’un exploit individuel isolé. En croisant <strong>120 ans d’archives olympiques</strong> (271&nbsp;116 participations d’été et d’hiver), le <strong>PIB par habitant</strong> et la <strong>démographie mondiale</strong>, cette vue unifiée montre que la performance des nations résulte de quatre mécanismes imbriqués. Chaque mention soulignée en pointillés (<span class="wiki-link" data-viz="domicile" data-params='{"season":"Summer","year":2008}' data-eyebrow="Navigation organique" data-title="Liens contextuels actifs" data-body="Survoler un lien affiche un aperçu chiffré façon Wikipédia ; cliquer met à jour la visualisation cible et fait défiler la page jusqu’à elle.">comme Pékin 2008</span>) relie directement les quatre chapitres sur cette même page.
+      </p>
+
+      <div class="meta-pillars">
+        <a href="#sec-geographie" class="meta-pillar">
+          <span class="meta-pillar-num">Axe 01 · Géographie</span>
+          <h3>La spécialisation territoriale</h3>
+          <p>Hors des superpuissances généralistes, les nations gagnent en concentrant leurs effectifs sur des bastions culturels à fort indice de spécialisation (LQ).</p>
+        </a>
+        <a href="#sec-economie" class="meta-pillar">
+          <span class="meta-pillar-num">Axe 02 · Économie</span>
+          <h3>La richesse face au rendement</h3>
+          <p>Le PIB par habitant détermine la taille de la délégation ($\rho \approx 0{,}55$), mais pas l’efficacité par athlète : l’investissement ciblé bat la rente économique.</p>
+        </a>
+        <a href="#sec-domicile" class="meta-pillar">
+          <span class="meta-pillar-num">Axe 03 · Domicile</span>
+          <h3>Le catalyseur du pays hôte</h3>
+          <p>Accueillir les Jeux ($T$) déclenche un choc d’effectifs et de médailles durable jusqu’à $T+3$ lorsque l’État cible des disciplines à multiples podiums.</p>
+        </a>
+        <a href="#sec-anatomie" class="meta-pillar">
+          <span class="meta-pillar-num">Axe 04 · Anatomie</span>
+          <h3>Le tri biomécanique</h3>
+          <p>Chaque discipline impose un couloir morphologique strict : les médaillés présentent un intervalle interquartile ($Q_1\text{–}Q_3$) plus resserré que les participants.</p>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- =====================================================================
+         01 · GÉOGRAPHIE — LA CARTE DES GROUPES SPORTIFS
+         ===================================================================== -->
+    <section id="sec-geographie" class="viz-chapter">
+      <div class="viz-header">
+        <div class="eyebrow">01 · GÉOGRAPHIE — TERRITOIRES, MÉDAILLES &amp; SPÉCIALISATION</div>
+        <h2 class="viz-title">La carte des groupes sportifs</h2>
+        <p class="intro">Comment les délégations et les médailles olympiques se répartissent-elles à l’échelle du globe ? Explorez les bastions nationaux, l’indice de spécialisation (LQ) et le taux de conversion en médailles d’été comme d’hiver.</p>
+        <div id="geo-wiki-narrative" class="wiki-narrative"></div>
+      </div>
+
+      <!-- Rubrique Question / Analyse / Réponse reliée à la Méta-Question -->
+      <div class="rubrique-qar" aria-label="Analyse du chapitre Géographie">
+        <article class="qar-card qar-question">
+          <span class="qar-tag">Question · Axe Territorial</span>
+          <h3>L’universalité olympique existe-t-elle, ou les nations bâtissent-elles leur palmarès sur des « niches » régionales ?</h3>
+          <p>Pour répondre à la méta-question, il faut d’abord savoir si les pays concourent sur un terrain homogène ou si la géographie dicte une division internationale du travail sportif.</p>
+        </article>
+        <article class="qar-card qar-analyse">
+          <span class="qar-tag">Analyse · Indices &amp; Disproportions</span>
+          <h3>Fracture entre empires généralistes et bastions hyperspécialisés</h3>
+          <p>En basculant la métrique sur <strong>Indice de spécialisation (LQ)</strong> ou <strong>Taux de conversion</strong>, deux modèles s’opposent : les géants (<a class="wiki-link" href="visualizations/geographie/index.html?season=Summer&year=2016&noc=USA" data-eyebrow="Superpuissance généraliste" data-title="États-Unis (USA) · 2016" data-body="Cliquer pour inspecter la répartition multisports américaine sur la carte et l’anneau.">États-Unis</a>, <a class="wiki-link" href="visualizations/geographie/index.html?season=Summer&year=2016&noc=CHN" data-eyebrow="Superpuissance généraliste" data-title="Chine (CHN) · 2016" data-body="Cliquer pour inspecter la délégation chinoise.">Chine</a>) couvrent plus de 25 sports, tandis que le <a class="wiki-link" href="visualizations/geographie/index.html?season=Summer&year=2016&sport=Athletics&noc=KEN&metric=specialization" data-eyebrow="Bastion spécialisé" data-title="Kenya en Athlétisme (LQ > 6)" data-body="Observer la concentration extrême du Kenya sur le demi-fond et le fond.">Kenya en athlétisme</a>, la <a class="wiki-link" href="visualizations/geographie/index.html?season=Summer&year=2016&sport=Archery&noc=KOR&metric=medals" data-eyebrow="Bastion spécialisé" data-title="Corée du Sud en Tir à l’arc" data-body="Voir la domination sud-coréenne en tir à l’arc.">Corée du Sud en tir à l’arc</a> ou l’<a class="wiki-link" href="visualizations/geographie/index.html?season=Winter&year=2014&sport=Alpine%20Skiing&noc=AUT&metric=medals" data-eyebrow="Bastion d’hiver" data-title="Autriche en Ski alpin (Hiver 2014)" data-body="Basculer sur les Jeux d’hiver 2014 pour voir le bastion alpin autrichien.">Autriche en ski alpin</a> concentrent l’essentiel de leurs podiums sur 1 à 3 disciplines.</p>
+        </article>
+        <article class="qar-card qar-reponse">
+          <span class="qar-tag">Réponse · Enseignement #1</span>
+          <h3>La spécialisation culturelle est le premier levier des nations moyennes</h3>
+          <p>Hors du top 5 économique mondial, <strong>aucune nation ne réussit en dispersant ses athlètes</strong>. Une puissance olympique émergente se construit en identifiant une niche culturelle ou climatique à fort rendement médaillé.</p>
+        </article>
+      </div>
+
+      <section class="controls" aria-label="Filtres de la carte">
+        <div class="control-group">
+          <label for="geo-season">Saison</label>
+          <select id="geo-season">
+            <option value="Summer">Été (Summer)</option>
+            <option value="Winter">Hiver (Winter)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="geo-year">Édition</label>
+          <select id="geo-year"></select>
+        </div>
+        <div class="control-group">
+          <label for="geo-sport">Discipline</label>
+          <select id="geo-sport"></select>
+        </div>
+        <div class="control-group">
+          <label for="geo-metric">Métrique cartographique</label>
+          <select id="geo-metric">
+            <option value="athletes">Effectif (nombre d’athlètes)</option>
+            <option value="medals">Médailles remportées</option>
+            <option value="conversion">Taux de conversion (médailles / 100 athl.)</option>
+            <option value="specialization">Indice de spécialisation (LQ)</option>
+          </select>
+        </div>
+        <button id="geo-reset" class="reset-button" type="button">Réinitialiser la sélection</button>
+      </section>
+
+      <section class="geo-layout">
+        <div class="map-panel">
+          <div class="panel-header">
+            <div>
+              <div class="eyebrow">VUE GLOBALE (OVERVIEW)</div>
+              <h3 id="geo-map-heading">Présence mondiale par délégation</h3>
+            </div>
+            <p id="geo-map-caption">Cliquez sur un pays pour détailler ses sports à droite, ou changez de métrique pour révéler les bastions de médailles.</p>
+          </div>
+          <div id="geo-map" role="img" aria-label="Carte mondiale des délégations olympiques"></div>
+          <div id="geo-legend" class="legend"></div>
+        </div>
+
+        <aside class="detail-panel">
+          <div class="panel-header">
+            <div>
+              <div class="eyebrow">DÉTAIL DISCIPLINAIRE (DRILL-DOWN)</div>
+              <h3 id="geo-detail-title">Monde entier</h3>
+            </div>
+            <p id="geo-detail-subtitle">Part des principales disciplines dans la sélection active.</p>
+          </div>
+          <div id="geo-donut" role="img" aria-label="Répartition par discipline sportive"></div>
+          <div id="geo-sport-list" class="sport-list"></div>
+        </aside>
+      </section>
+      <p class="source-note">Note méthodologique : chaque athlète est compté une fois par édition et par CNO ; chaque médaille d’épreuve collective compte pour un titre national. L’indice de spécialisation (Location Quotient) compare la part d’un sport dans le pays à sa part mondiale (LQ &gt; 1 = sur-représentation).</p>
+    </section>
+
+    <!-- =====================================================================
+         02 · ÉCONOMIE — LE POIDS DE LA RICHESSE
+         ===================================================================== -->
+    <section id="sec-economie" class="viz-chapter">
+      <div class="viz-header">
+        <div class="eyebrow">02 · ÉCONOMIE — PIB PAR HABITANT, DÉMOGRAPHIE &amp; RENDEMENT</div>
+        <h2 class="viz-title">Le poids de la richesse</h2>
+        <p class="intro">Les pays riches envoient plus d’athlètes et remportent plus de médailles au total. Mais rapporté à la taille de leur délégation, sont-ils vraiment plus efficaces que les nations à revenu modéré ?</p>
+      </div>
+
+      <!-- Rubrique Question / Analyse / Réponse reliée à la Méta-Question -->
+      <div class="rubrique-qar" aria-label="Analyse du chapitre Économie">
+        <article class="qar-card qar-question">
+          <span class="qar-tag">Question · Axe Macro-Économique</span>
+          <h3>Le PIB par habitant achète-t-il mécaniquement les podiums, ou certaines nations déjouent-elles la loi de l’argent ?</h3>
+          <p>Si la spécialisation géographique compte (Axe 01), jusqu’où la richesse économique contraint-elle l’accès aux Jeux et la capacité à transformer une délégation en médailles ?</p>
+        </article>
+        <article class="qar-card qar-analyse">
+          <span class="qar-tag">Analyse · Corrélation de Spearman &amp; Trajectoires</span>
+          <h3>Une corrélation forte sur le volume ($\rho \approx 0{,}55$), mais quasi nulle sur l’efficacité ($\rho \approx 0{,}05$)</h3>
+          <p>Lorsque l’axe vertical affiche la <strong>Délégation</strong> ou les <strong>Médailles</strong>, la droite de tendance grimpe nettement avec le PIB/hab. Mais en mode <strong>Efficacité</strong> (1 = moyenne de l’édition), le nuage s’aplatit : des nations du quadrant « moins riche, plus efficace » (<a class="wiki-link" href="visualizations/economie/index.html?saison=ete&year=2016&country=KEN&mesure=efficacite" data-eyebrow="Surperformance économique" data-title="Kenya · Efficacité > 3× la moyenne" data-body="Cliquer pour tracer la trajectoire économique et olympique du Kenya.">Kenya</a>, <a class="wiki-link" href="visualizations/economie/index.html?saison=ete&year=2016&country=JAM&mesure=efficacite" data-eyebrow="Surperformance économique" data-title="Jamaïque · Sprint & Efficacité" data-body="Comparer la trajectoire de la Jamaïque dans le nuage.">Jamaïque</a>, <a class="wiki-link" href="visualizations/economie/index.html?saison=ete&year=2016&country=CUB&mesure=efficacite" data-eyebrow="Surperformance économique" data-title="Cuba · Modèle d’État sportif" data-body="Voir la trajectoire historique de Cuba depuis 1960.">Cuba</a>) surpassent la majorité des économies avancées.</p>
+        </article>
+        <article class="qar-card qar-reponse">
+          <span class="qar-tag">Réponse · Enseignement #2</span>
+          <h3>La richesse finance la présence, mais l’organisation dicte l’efficacité</h3>
+          <p>Le PIB par habitant est une condition d’<strong>accès massif aux compétitions</strong> (infrastructures coûteuses, sports d’hiver), mais <strong>le rendement par athlète dépend de la stratégie de ciblage</strong> plutôt que du revenu national moyen.</p>
+        </article>
+      </div>
+
+      <div class="cles">
+        <div class="cle">
+          <span class="eyebrow">Axe vertical · Efficacité</span>
+          <p><strong>Médailles par athlète</strong> du pays divisées par la moyenne de l’édition. <strong>1</strong> = dans la moyenne ; <strong>2</strong> = deux fois plus efficace.</p>
+        </div>
+        <div class="cle">
+          <span class="eyebrow">Repères · Quadrants</span>
+          <p>La ligne verticale marque le <strong>PIB médian</strong> de l’édition, l’horizontale la <strong>moyenne</strong> (ou la médiane pour les autres mesures).</p>
+        </div>
+        <div class="cle">
+          <span class="eyebrow">Bande gauche · PIB inconnu</span>
+          <p>Les pays sans donnée de PIB restent visibles à gauche en <strong>cercles creux</strong> : l’absence de donnée statistique n’efface pas l’histoire sportive.</p>
+        </div>
+      </div>
+
+      <section id="controles" class="controles" aria-label=" Paramètres du nuage économique">
+        <div class="carte">
+          <div class="control-group">
+            <span class="etiquette">Compétition</span>
+            <div class="segmente" role="radiogroup" aria-label="Compétition">
+              <label><input type="radio" name="jeux" value="olympiques" checked><span>Olympiques</span></label>
+              <label><input type="radio" name="jeux" value="paralympiques"><span>Paralympiques</span></label>
+            </div>
+          </div>
+          <div class="control-group">
+            <span class="etiquette">Saison</span>
+            <div class="segmente" role="radiogroup" aria-label="Saison">
+              <label><input type="radio" name="saison" value="ete" checked><span>Été</span></label>
+              <label><input type="radio" name="saison" value="hiver"><span>Hiver</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="carte">
+          <div class="control-group">
+            <div class="ligne-valeur">
+              <label class="etiquette" for="annee">Édition</label>
+              <span id="annee-valeur" class="grand-chiffre"></span>
+              <span id="hote-lien"></span>
+              <button type="button" id="lecture" class="bouton" aria-pressed="false">▶ Lecture</button>
+            </div>
+            <input type="range" id="annee" min="0" max="0" step="1">
+          </div>
+          <div class="control-group">
+            <label class="etiquette" for="recherche">Comparer un pays</label>
+            <input type="search" id="recherche" list="liste-pays" placeholder="Rechercher un pays (ex. France, Chine, Kenya)…">
+            <datalist id="liste-pays"></datalist>
+          </div>
+        </div>
+
+        <div class="carte">
+          <div class="control-group">
+            <span class="etiquette">Axe vertical</span>
+            <div class="segmente" role="radiogroup" aria-label="Axe vertical">
+              <label><input type="radio" name="mesure" value="efficacite" checked><span>Efficacité</span></label>
+              <label><input type="radio" name="mesure" value="medailles"><span>Médailles</span></label>
+              <label><input type="radio" name="mesure" value="delegation"><span>Délégation</span></label>
+              <label><input type="radio" name="mesure" value="parHabitant"><span>Athlètes / hab.</span></label>
+            </div>
+          </div>
+          <div class="control-group">
+            <span class="etiquette">Taille des cercles</span>
+            <div class="segmente" role="radiogroup" aria-label="Taille des cercles">
+              <label><input type="radio" name="taille" value="population" checked><span>Population</span></label>
+              <label><input type="radio" name="taille" value="athletes"><span>Athlètes</span></label>
+              <label><input type="radio" name="taille" value="medailles"><span>Médailles</span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="carte">
+          <div class="control-group">
+            <div class="ligne-valeur">
+              <label class="etiquette" for="min-athletes">Délégation minimale</label>
+              <span class="valeur"><strong id="min-valeur">5</strong> athlètes</span>
+            </div>
+            <input type="range" id="min-athletes" min="1" max="50" value="5">
+          </div>
+          <div class="control-group">
+            <span class="etiquette">Continents</span>
+            <div id="filtre-continents" class="pastilles-filtre" role="group" aria-label="Continents"></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="etat">
+        <div id="legende" aria-label="Légende"></div>
+        <div id="comparaison" aria-live="polite">
+          <span class="aide"></span>
+          <div class="puces"></div>
+          <button type="button" id="tout-effacer" class="bouton-texte">Tout effacer</button>
+          <span class="message" role="status"></span>
+        </div>
+        <p id="couverture"></p>
+      </div>
+
+      <div class="panneau">
+        <svg id="nuage" role="img" aria-label="Nuage de points PIB par habitant et mesure olympique"></svg>
+        <p id="correlation" aria-live="polite"></p>
+      </div>
+
+      <section id="detail" class="section" hidden aria-live="polite">
+        <div class="entete-detail">
+          <h2 id="detail-titre"></h2>
+          <button type="button" id="rejouer" class="bouton">↻ Rejouer</button>
+          <button type="button" id="fermer" class="bouton-texte">Tout effacer</button>
+        </div>
+        <ul id="detail-info"></ul>
+        <p id="detail-note"></p>
+        <div class="panneau">
+          <svg id="trajectoire" role="img" aria-label="Trajectoire des pays sélectionnés au fil des éditions"></svg>
+        </div>
+      </section>
+
+      <section id="synthese" class="section">
+        <div class="eyebrow">SYNTHÈSE LONGITUDINALE</div>
+        <h2 id="evolution-titre"></h2>
+        <p class="explication">
+          Chaque point résume une édition par la corrélation de rang de Spearman ($\rho$) entre le PIB par habitant et la mesure choisie, de $-1$ (lien inverse) à $+1$ (lien direct). Cliquez sur une édition pour afficher son nuage ci-dessus.
+        </p>
+        <div class="panneau">
+          <svg id="evolution" role="img" aria-label="Évolution de la corrélation richesse-mesure par édition"></svg>
+        </div>
+      </section>
+
+      <details id="bloc-tableau" class="section">
+        <summary id="tableau-titre">Tableau des pays affichés</summary>
+        <p class="explication">Cliquez sur un en-tête pour trier, sur un pays pour l’ajouter à la comparaison, ou sur l’effectif d’un pays pour scroller vers sa carte disciplinaire.</p>
+        <div class="defilement">
+          <table id="tableau">
+            <thead><tr></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+
+    <!-- =====================================================================
+         03 · DOMICILE — TRAJECTOIRE DES PAYS HÔTES
+         ===================================================================== -->
+    <section id="sec-domicile" class="viz-chapter">
+      <div class="viz-header">
+        <div class="eyebrow">03 · AVANTAGE À DOMICILE — ÉTUDE D’ÉVÉNEMENT (T−3 À T+3)</div>
+        <h2 class="viz-title">Trajectoire des pays hôtes</h2>
+        <p class="intro">Comment évoluent la taille des délégations, le nombre de médailles et le PIB par habitant d’un pays avant, pendant et après l’organisation des Jeux d’été ou d’hiver ?</p>
+      </div>
+
+      <!-- Rubrique Question / Analyse / Réponse reliée à la Méta-Question -->
+      <div class="rubrique-qar" aria-label="Analyse du chapitre Domicile">
+        <article class="qar-card qar-question">
+          <span class="qar-tag">Question · Axe Événementiel &amp; Politique</span>
+          <h3>Accueillir les Jeux ne crée-t-il qu’un feu de paille lié aux quotas hôtes, ou transforme-t-il durablement la hiérarchie sportive ?</h3>
+          <p>Face aux contraintes géographiques (Axe 01) et économiques (Axe 02), l’organisation des Jeux à l’année $T$ permet-elle à une nation de changer structurellement de catégorie ?</p>
+        </article>
+        <article class="qar-card qar-analyse">
+          <span class="qar-tag">Analyse · Trajectoires T−3 à T+3 &amp; Disciplines Motrices</span>
+          <h3>Divergence entre « pic mécanique d’effectifs » et « héritage de médailles »</h3>
+          <p>Le graphique d’impact révèle que si la délégation bondit presque toujours à $T$ (<a class="wiki-link" href="visualizations/domicile/index.html?season=Summer&year=2004" data-eyebrow="Choc d’effectif à T" data-title="Athènes 2004 (Grèce)" data-body="Voir le bond de la délégation grecque en 2004 suivi d’un repli rapide.">Athènes 2004</a>, <a class="wiki-link" href="visualizations/domicile/index.html?season=Summer&year=1968" data-eyebrow="Choc d’effectif à T" data-title="Mexico 1968 (Mexique)" data-body="Observer la trajectoire mexicaine autour de 1968.">Mexico 1968</a>), seules les nations qui investissent sur des disciplines à forte densité de podiums (<a class="wiki-link" href="visualizations/domicile/index.html?season=Summer&year=1992" data-eyebrow="Rupture structurelle" data-title="Barcelone 1992 (Espagne)" data-body="Voir comment l’Espagne a triplé son niveau de médailles à partir de 1992.">Barcelone 1992</a>, <a class="wiki-link" href="visualizations/domicile/index.html?season=Summer&year=2008" data-eyebrow="Sommet olympique" data-title="Pékin 2008 (Chine)" data-body="Analyser les disciplines motrices du bond chinois en 2008.">Pékin 2008</a>, <a class="wiki-link" href="visualizations/domicile/index.html?season=Summer&year=2012" data-eyebrow="Héritage durable" data-title="Londres 2012 (Royaume-Uni)" data-body="Observer la progression britannique maintenue après 2012.">Londres 2012</a>, <a class="wiki-link" href="visualizations/domicile/index.html?season=Winter&year=2014" data-eyebrow="Jeux d’hiver" data-title="Sotchi 2014 (Russie)" data-body="Inspecter l’effet hôte hivernal à Sotchi 2014.">Sotchi 2014</a>) conservent un palier supérieur en $T+1$ et $T+2$.</p>
+        </article>
+        <article class="qar-card qar-reponse">
+          <span class="qar-tag">Réponse · Enseignement #3</span>
+          <h3>L’accueil agit comme un accélérateur décennal d’investissement public</h3>
+          <p>L’avantage à domicile n’est pas qu’une faveur arbitrale ou populaire : c’est un <strong>électrochoc budgétaire planifié sur 8 ans</strong> qui propulse durablement les pays hôtes lorsqu’il cible les sports-clés (aviron, cyclisme, voile, natation).</p>
+        </article>
+      </div>
+
+      <section class="toolbar" aria-label="Paramètres de l'étude des pays hôtes">
+        <div class="toolbar-controls">
+          <div class="control-group">
+            <label for="dom-season">Saison</label>
+            <select id="dom-season">
+              <option value="Summer">Jeux d’été (Summer)</option>
+              <option value="Winter">Jeux d’hiver (Winter)</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="dom-rank-metric">Axe vertical du graphique</label>
+            <select id="dom-rank-metric">
+              <option value="delegationEffect">Effet sur la taille de la délégation</option>
+              <option value="medalsEffect">Effet sur les médailles</option>
+            </select>
+          </div>
+        </div>
+        <div class="selected-pill">Édition sélectionnée : <strong id="dom-selected-edition">Pékin 2008</strong></div>
+      </section>
+
+      <nav id="dom-timeline" class="timeline" aria-label="Frise des éditions"></nav>
+
+      <section class="impact-section">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">COMPARAISON GLOBALE DES PAYS HÔTES (OVERVIEW)</div>
+            <h3 id="dom-impact-title">Richesse du pays hôte et ampleur de l’effet domicile</h3>
+          </div>
+          <p>Comparez les éditions selon le PIB par habitant l’année d’accueil. Cliquez sur un cercle pour ouvrir la trajectoire détaillée $T-3 \rightarrow T+3$ et les sports moteurs.</p>
+        </div>
+        <div id="dom-impact" class="impact-chart" role="img" aria-label="Graphique de l'effet pays hôte selon le PIB par habitant"></div>
+        <div class="impact-legend">
+          <div class="legend-block"><span>Effet sur les médailles</span><div class="color-bar"></div><span>Faible → Fort</span></div>
+          <div class="legend-block"><span>Taille du cercle : nombre d’athlètes à T</span><span class="size-dots"><i></i><i></i><i></i></span></div>
+        </div>
+      </section>
+
+      <section id="dom-event-detail" class="event-detail">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">TRAJECTOIRE DÉTAILLÉE AUTOUR DE L’ACCUEIL (T−3 À T+3)</div>
+            <h3 id="dom-event-detail-title">Chine · Pékin 2008</h3>
+          </div>
+          <button id="dom-close-detail" class="close-button" type="button">Masquer le détail</button>
+        </div>
+        <div id="dom-event-narrative" class="wiki-narrative"></div>
+        <div id="dom-event-chart" class="event-chart" role="img" aria-label="Trajectoire avant et après les Jeux"></div>
+        <div id="dom-host-sports-breakdown" class="host-sports-breakdown"></div>
+      </section>
+      <p class="source-note">Note méthodologique : l’effet à domicile compare la valeur observée en $T$ à la moyenne des trois éditions précédentes disponibles ($T-3$, $T-2$, $T-1$). Les titres des courbes et chaque point permettent de basculer directement vers la Carte ou l’Économie.</p>
+    </section>
+
+    <!-- =====================================================================
+         04 · ANATOMIE — L’ANATOMIE DE L’ÉLITE
+         ===================================================================== -->
+    <section id="sec-anatomie" class="viz-chapter">
+      <div class="viz-header">
+        <div class="eyebrow">04 · BIOMÉCANIQUE — PROFILS MORPHOLOGIQUES PAR SPORT</div>
+        <h2 class="viz-title">L’anatomie de l’élite</h2>
+        <p class="intro">Âge, taille et poids médians des athlètes par discipline. Sélectionnez l’édition, la saison, le sexe et la cohorte, filtrez la taille par glissement vertical et comparez les médaillés aux participants.</p>
+        <div id="anat-wiki-narrative" class="wiki-narrative"></div>
+      </div>
+
+      <!-- Rubrique Question / Analyse / Réponse reliée à la Méta-Question -->
+      <div class="rubrique-qar" aria-label="Analyse du chapitre Anatomie">
+        <article class="qar-card qar-question">
+          <span class="qar-tag">Question · Axe Anthropométrique</span>
+          <h3>Au bout de la chaîne, le podium impose-t-il un « corps-type » standardisé qui filtre les nations victorieuses ?</h3>
+          <p>Une fois les ressources économiques mobilisées (Axe 02) et les sports ciblés (Axes 01 &amp; 03), quelle est la réalité biologique du tri entre un simple qualifié olympique et un médaillé ?</p>
+        </article>
+        <article class="qar-card qar-analyse">
+          <span class="qar-tag">Analyse · Coordonnées Parallèles &amp; Interquartiles (Q1–Q3)</span>
+          <h3>Une polarisation morphologique extrême et un couloir interquartile resserré chez les médaillés</h3>
+          <p>Les coordonnées parallèles opposent des archétypes radicaux : <a class="wiki-link" href="visualizations/anatomie/index.html?season=Summer&year=2016&sport=Gymnastics&sportB=Basketball" data-eyebrow="Opposition morphologique" data-title="Gymnastique vs Basket-ball (2016)" data-body="Comparer les profils médians et interquartiles de la Gymnastique et du Basket-ball.">Gymnastique vs Basket-ball</a> (162&nbsp;cm / 56&nbsp;kg contre 197&nbsp;cm / 91&nbsp;kg) ou <a class="wiki-link" href="visualizations/anatomie/index.html?season=Summer&year=2016&sport=Rowing&sportB=Shooting" data-eyebrow="Puissance vs Précision" data-title="Aviron vs Tir sportif (2016)" data-body="Comparer la jeunesse longiligne de l’Aviron à la longévité d’âge du Tir sportif.">Aviron vs Tir sportif</a> (où l’âge médian des médaillés atteint 29–31 ans). Dans les fiches comparatives ci-dessous, la barre $Q_1\text{–}Q_3$ des <strong>médaillés</strong> se resserre systématiquement autour de l’optimum biomécanique du sport.</p>
+        </article>
+        <article class="qar-card qar-reponse">
+          <span class="qar-tag">Réponse · Synthèse Finale</span>
+          <h3>La sélection biomécanique verrouille la spécialisation des nations</h3>
+          <p>La boucle analytique se referme : <strong>la haute performance exige l’adéquation entre un vivier morphologique, une spécialisation culturelle et un investissement d’État</strong>. Les bastions nationaux dominent parce qu’ils détectent et forment exactement les profils physiques requis par leurs disciplines cibles.</p>
+        </article>
+      </div>
+
+      <section class="controls" aria-label="Filtres de la visualisation morphologique">
+        <div class="control-group">
+          <label for="anat-season">Saison</label>
+          <select id="anat-season">
+            <option value="Summer">Été (Summer)</option>
+            <option value="Winter">Hiver (Winter)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="anat-year">Édition</label>
+          <select id="anat-year"></select>
+        </div>
+        <div class="control-group">
+          <label for="anat-sex">Sexe</label>
+          <select id="anat-sex">
+            <option value="ALL">Tous (F + M)</option>
+            <option value="F">Femmes (F)</option>
+            <option value="M">Hommes (M)</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="anat-cohort">Cohorte</label>
+          <select id="anat-cohort">
+            <option value="all">Tous les participants</option>
+            <option value="medalists">Médaillés uniquement</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label for="anat-sport-a">Sport comparé 1</label>
+          <select id="anat-sport-a"></select>
+        </div>
+        <div class="control-group">
+          <label for="anat-sport-b">Sport comparé 2</label>
+          <select id="anat-sport-b"></select>
+        </div>
+        <button id="anat-reset" class="reset-button" type="button">Réinitialiser</button>
+      </section>
+
+      <section class="chart-meta">
+        <div>
+          <div class="eyebrow">VUE D’ENSEMBLE MULTIVARIÉE (OVERVIEW)</div>
+          <h3>Coordonnées parallèles : âge, taille et poids par discipline</h3>
+        </div>
+        <p id="anat-selection-label">Glissez verticalement sur l’axe de la taille pour filtrer un gabarit ; cliquez sur une courbe pour l’analyser.</p>
+      </section>
+
+      <section class="chart-panel">
+        <div id="anat-chart" role="img" aria-label="Coordonnées parallèles âge taille poids par discipline olympique"></div>
+      </section>
+
+      <section class="legend-note">
+        <span class="legend-line selected-a"></span><span>Sport comparé 1</span>
+        <span class="legend-line selected-b"></span><span>Sport comparé 2</span>
+        <span class="legend-line brushed"></span><span>Sports dans la plage de taille filtrée</span>
+        <span class="legend-line muted"></span><span>Autres disciplines</span>
+      </section>
+
+      <section id="anat-sport-detail" class="sport-detail-section" aria-live="polite">
+        <div class="chart-meta">
+          <div>
+            <div class="eyebrow">VUE DE DÉTAIL (DRILL-DOWN) · ANALYSE COMPARATIVE</div>
+            <h3 id="anat-detail-heading">Médaillés vs Participants &amp; Nations dominantes</h3>
+          </div>
+          <p>Comparaison des intervalles interquartiles (25&nbsp;%–75&nbsp;%) et médianes entre médaillés et non-médaillés.</p>
+        </div>
+        <div id="anat-sport-detail-grid" class="sport-detail-grid"></div>
+      </section>
+      <p class="source-note">Note méthodologique : valeurs médianes et quartiles calculés sur les athlètes mesurés (âge, taille et poids renseignés) par édition. Un clic sur un bastion national ou un nom de sport fait défiler la page vers la Carte ou l’Économie en conservant le contexte.</p>
+    </section>
+  </main>
+
+  <footer class="unified-footer">
+    <span>Projet de Visualisation d’Information (M2) · Analyse intégrée en vue unique</span>
+    <span>Navigation contextuelle : tous les liens soulignés synchronisent les graphiques et défilent vers la section concernée.</span>
+  </footer>
+
+  <!-- Infobulles partagées et aperçu façon Wikipédia -->
+  <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
+  <div id="infobulle" role="status" aria-live="polite"></div>
+  <div id="wiki-preview" class="wiki-preview" role="tooltip" aria-hidden="true"></div>
+
+  <!-- Chargement modulaire des 4 contrôleurs sur la même page (avec cache mémoire partagé) -->
+  <script type="module">
+    import { bindWikiPreviews } from './visualizations/shared-links.js';
+    bindWikiPreviews(document);
+  </script>
+  <script type="module" src="visualizations/geographie/app.js"></script>
+  <script type="module" src="visualizations/economie/app.js"></script>
+  <script type="module" src="visualizations/domicile/app.js"></script>
+  <script type="module" src="visualizations/anatomie/app.js"></script>
+</body>
 </html>

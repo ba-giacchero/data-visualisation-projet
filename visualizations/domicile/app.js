@@ -1,8 +1,5 @@
-import { HOST_EDITIONS, WINTER_HOST_EDITIONS, bindWikiPreviews, showWikiPreview, moveWikiPreview, hideWikiPreview, wikiLinkHtml } from '../shared-links.js';
+import { HOST_EDITIONS, WINTER_HOST_EDITIONS, bindWikiPreviews, showWikiPreview, moveWikiPreview, hideWikiPreview, wikiLinkHtml, getOlympicRows, getGdpRows, getPopulationRows, registerVizController, navigateToViz } from '../shared-links.js';
 
-const OLYMPIC_FILE = '../../120 years of Olympic history/athlete_events.csv';
-const GDP_FILE = '../../Global GDP-PIB per Capita Dataset (1960-present)/pib_per_capita_countries_dataset.csv';
-const POPULATION_FILE = '../../Demographic data/wdi_wide.csv';
 const state = { season: 'Summer', index: 13, rankMetric: 'delegationEffect', detailVisible: true };
 const historicalEconomicCodes = { FRG: 'DEU', URS: 'RUS', YUG: 'SRB' };
 const populationKeys = { ITA:'italy', JPN:'japan', MEX:'mexico', FRG:'germany', CAN:'canada', URS:'russianfederation', RUS:'russianfederation', USA:'unitedstates', KOR:'korearep', ESP:'spain', AUS:'australia', GRE:'greece', CHN:'china', GBR:'unitedkingdom', BRA:'brazil', AUT:'austria', FRA:'france', YUG:'serbia', NOR:'norway' };
@@ -10,6 +7,9 @@ const populationKeys = { ITA:'italy', JPN:'japan', MEX:'mexico', FRG:'germany', 
 const formatNumber = d3.format(',');
 const formatMoney = value => value >= 1000 ? `$${d3.format(',.0f')(value)}` : `$${d3.format('.2f')(value)}`;
 const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const domSel = (scoped, fallback) => document.querySelector(scoped) ? d3.select(scoped) : d3.select(fallback);
+const domNode = (scoped, fallback) => document.querySelector(scoped) || document.querySelector(fallback);
+
 let model;
 
 function aggregate(rows, gdpRows, populationRows) {
@@ -172,15 +172,15 @@ function updateSeasonHosts() {
   }
 }
 
-function applyUrlParams() {
-  const params = new URLSearchParams(window.location.search);
-  const seasonParam = params.get('season') || params.get('saison');
+function applyParams(params = {}) {
+  const seasonParam = params.season || params.saison;
   if (seasonParam === 'Winter' || seasonParam === 'hiver') state.season = 'Winter';
   else if (seasonParam === 'Summer' || seasonParam === 'ete') state.season = 'Summer';
+  domSel('#dom-season', '#season').property('value', state.season);
   model.hosts = enrichHostsForSeason(state.season);
 
-  const y = +params.get('year');
-  const noc = params.get('noc') || params.get('country');
+  const y = +params.year;
+  const noc = params.noc || params.country;
   if (y) {
     const idx = model.hosts.findIndex(h => h.year === y);
     if (idx !== -1) { state.index = idx; state.detailVisible = true; }
@@ -188,32 +188,37 @@ function applyUrlParams() {
     const idx = model.hosts.findIndex(h => h.noc === noc.toUpperCase());
     if (idx !== -1) { state.index = idx; state.detailVisible = true; }
   }
+  render();
 }
 
 function initialize(rows, gdpRows, populationRows) {
   model = aggregate(rows, gdpRows, populationRows);
   model.hosts = enrichHostsForSeason(state.season);
-  applyUrlParams();
   setupControls();
-  render();
+  const urlParams = Object.fromEntries(new URLSearchParams(window.location.search).entries());
+  applyParams(urlParams);
+  registerVizController('domicile', applyParams);
 }
 
 function selectedHost() { return model.hosts[state.index] || model.hosts[0]; }
 
 function setupControls() {
-  d3.select('#season').property('value', state.season).on('change', event => {
+  domSel('#dom-season', '#season').property('value', state.season).on('change', event => {
     state.season = event.target.value;
     state.detailVisible = true;
     updateSeasonHosts();
     render();
   });
-  d3.select('#rank-metric').on('change', event => {
+  domSel('#dom-rank-metric', '#rank-metric').on('change', event => {
     state.rankMetric = event.target.value;
     const available = availableHosts();
     if (!available.some(host => host.year === selectedHost().year)) state.index = model.hosts.indexOf(available[0]);
     render();
   });
-  d3.select('#close-detail').on('click', () => { state.detailVisible = false; d3.select('#event-detail').attr('hidden', true); });
+  domSel('#dom-close-detail', '#close-detail').on('click', () => {
+    state.detailVisible = false;
+    domSel('#dom-event-detail', '#event-detail').attr('hidden', true);
+  });
 }
 
 function availableHosts() {
@@ -233,20 +238,27 @@ function render() {
       ['Médailles obtenues', `${formatNumber(host.medals || 0)} médailles`]
     ]
   });
-  d3.select('#selected-edition').html(selLink);
-  bindWikiPreviews(document.querySelector('.toolbar'));
+  domSel('#dom-selected-edition', '#selected-edition').html(selLink);
+  bindWikiPreviews(document.querySelector('#sec-domicile') || document);
   renderTimeline();
   renderImpact();
   if (state.detailVisible) renderEventDetail(host);
 }
 
 function renderTimeline() {
-  d3.select('#timeline').selectAll('button').data(availableHosts(), host => `${host.year}-${host.city}`).join('button').attr('class', host => `timeline-item ${host.year === selectedHost().year ? 'active' : ''}`).on('click', (_, host) => { state.index = model.hosts.indexOf(host); state.detailVisible = true; render(); }).html(host => `<span class="timeline-dot"></span><span>${host.year}</span><span class="timeline-city">${host.city}</span>`);
+  domSel('#dom-timeline', '#timeline')
+    .selectAll('button')
+    .data(availableHosts(), host => `${host.year}-${host.city}`)
+    .join('button')
+    .attr('class', host => `timeline-item ${host.year === selectedHost().year ? 'active' : ''}`)
+    .on('click', (_, host) => { state.index = model.hosts.indexOf(host); state.detailVisible = true; render(); })
+    .html(host => `<span class="timeline-dot"></span><span>${host.year}</span><span class="timeline-city">${host.city}</span>`);
 }
 
 function renderImpact() {
-  const container = document.querySelector('#impact');
-  const width = Math.max(container.clientWidth, 650);
+  const container = domNode('#dom-impact', '#impact');
+  if (!container) return;
+  const width = Math.max(container.clientWidth, 620);
   const height = 430;
   const margin = { top:25, right:30, bottom:58, left:70 };
   const innerWidth = width - margin.left - margin.right;
@@ -261,8 +273,9 @@ function renderImpact() {
   const y = d3.scaleLinear().domain([-maxEffect * 1.15, maxEffect * 1.15]).nice().range([innerHeight, 0]);
   const radius = d3.scaleSqrt().domain([0, d3.max(validRows, host => host.delegation) || 1]).range([5, 25]);
   const color = d3.scaleDiverging().domain([minMedalsEffect, 0, maxMedalsEffect]).interpolator(d3.interpolateRgbBasis(['#b9413e', '#f4f0e8', '#174d4b']));
-  d3.select('#impact').selectAll('svg').remove();
-  const svg = d3.select('#impact').append('svg').attr('class', 'impact-svg').attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
+  const impactSel = d3.select(container);
+  impactSel.selectAll('svg').remove();
+  const svg = impactSel.append('svg').attr('class', 'impact-svg').attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
   const plot = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
   plot.append('g').attr('class', 'impact-grid').call(d3.axisLeft(y).ticks(6).tickSize(-innerWidth).tickFormat(''));
   plot.append('g').attr('class', 'impact-axis').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(x).ticks(6, value => `$${d3.format('.2s')(value)}`));
@@ -286,8 +299,9 @@ function eventRows(host) {
 function renderEventDetail(host) {
   const rows = eventRows(host);
   const ecoSaison = state.season === 'Winter' ? 'hiver' : 'ete';
-  const container = document.querySelector('#event-chart');
-  const width = Math.max(container.clientWidth, 760);
+  const container = domNode('#dom-event-chart', '#event-chart');
+  if (!container) return;
+  const width = Math.max(container.clientWidth, 680);
   const height = 700;
   const margin = { top:30, right:30, bottom:48, left:72 };
   const gap = 42;
@@ -302,7 +316,8 @@ function renderEventDetail(host) {
       y:margin.top,
       format:value => `${formatNumber(value)} athlètes`,
       tick:value => value,
-      href: `../geographie/index.html?season=${state.season}&year=${host.year}&noc=${host.noc}`,
+      targetViz: 'geographie',
+      targetParams: { season: state.season, year: host.year, noc: host.noc },
       preview: {
         eyebrow: 'La carte des groupes sportifs',
         title: `Délégation de ${host.country} (${host.year})`,
@@ -317,7 +332,8 @@ function renderEventDetail(host) {
       y:margin.top + panelHeight + gap,
       format:value => `${formatNumber(value)} médailles`,
       tick:value => value,
-      href: `../economie/index.html?saison=${ecoSaison}&year=${host.year}&country=${host.noc}&mesure=medailles`,
+      targetViz: 'economie',
+      targetParams: { saison: ecoSaison, year: host.year, country: host.noc, mesure: 'medailles' },
       preview: {
         eyebrow: 'Le poids de la richesse',
         title: `Médailles de ${host.country} (${host.year})`,
@@ -332,7 +348,8 @@ function renderEventDetail(host) {
       y:margin.top + (panelHeight + gap) * 2,
       format:formatMoney,
       tick:value => value >= 1000 ? `$${d3.format('.2s')(value)}` : `$${value}`,
-      href: `../economie/index.html?saison=${ecoSaison}&year=${host.year}&country=${host.noc}`,
+      targetViz: 'economie',
+      targetParams: { saison: ecoSaison, year: host.year, country: host.noc },
       preview: {
         eyebrow: 'Le poids de la richesse',
         title: `Trajectoire économique · ${host.country}`,
@@ -341,7 +358,7 @@ function renderEventDetail(host) {
       }
     }
   ];
-  d3.select('#event-detail').attr('hidden', null);
+  domSel('#dom-event-detail', '#event-detail').attr('hidden', null);
 
   const countryLink = wikiLinkHtml({
     href: `../economie/index.html?saison=${ecoSaison}&year=${host.year}&country=${host.noc}`,
@@ -351,7 +368,7 @@ function renderEventDetail(host) {
     body: `Explorer la position de ${host.country} dans le nuage PIB/hab × efficacité et sa trajectoire depuis 1960.`,
     metrics: [['PIB / habitant', host.gdp ? formatMoney(host.gdp) : 'N/D'], ['Médailles (' + host.year + ')', `${formatNumber(host.medals || 0)}`]]
   });
-  d3.select('#event-detail-title').html(`${countryLink} · ${host.city} ${host.year}`);
+  domSel('#dom-event-detail-title', '#event-detail-title').html(`${countryLink} · ${host.city} ${host.year}`);
 
   const delLink = wikiLinkHtml({
     href: `../geographie/index.html?season=${state.season}&year=${host.year}&noc=${host.noc}`,
@@ -378,13 +395,14 @@ function renderEventDetail(host) {
     });
   }).join(', ');
 
-  d3.select('#event-narrative').html(
+  domSel('#dom-event-narrative', '#event-narrative').html(
     `En <strong>${host.year}</strong>, ${countryLink} engage ${delLink} à domicile` +
     (sportsLinks ? `, avec pour fers de lance ${sportsLinks}` : '') + `.`
   );
 
-  d3.select('#event-chart').selectAll('svg').remove();
-  const svg = d3.select('#event-chart').append('svg').attr('class','event-svg').attr('width',width).attr('height',height).attr('viewBox',`0 0 ${width} ${height}`);
+  const chartSel = d3.select(container);
+  chartSel.selectAll('svg').remove();
+  const svg = chartSel.append('svg').attr('class','event-svg').attr('width',width).attr('height',height).attr('viewBox',`0 0 ${width} ${height}`);
   svg.append('line').attr('class','host-line').attr('x1',margin.left + x(0)).attr('x2',margin.left + x(0)).attr('y1',margin.top - 12).attr('y2',height - margin.bottom);
   panels.forEach(panel => {
     const values = rows.map(row => row[panel.key]).filter(value => value !== null);
@@ -401,7 +419,10 @@ function renderEventDetail(host) {
       .on('mouseenter', event => showWikiPreview(event, panel.preview))
       .on('mousemove', moveWikiPreview)
       .on('mouseleave', hideWikiPreview)
-      .on('click', () => { window.location.href = panel.href; });
+      .on('click', () => {
+        hideWikiPreview();
+        navigateToViz(panel.targetViz, panel.targetParams);
+      });
     plot.append('g').attr('class','event-axis').attr('transform',`translate(${margin.left},${panel.y + panelHeight})`).call(d3.axisBottom(x).tickFormat(offset => offset === 0 ? 'T' : offset > 0 ? `T+${offset}` : `T${offset}`));
     const line = d3.line().defined(row => row[panel.key] !== null).x(row => margin.left + x(row.offset)).y(row => y(row[panel.key]));
     plot.append('path').datum(rows).attr('class',`event-line-${panel.color}`).attr('d',line);
@@ -415,15 +436,15 @@ function renderEventDetail(host) {
       .on('click', (_, row) => {
         if (row[panel.key] === null) return;
         if (panel.key === 'delegation') {
-          window.location.href = `../geographie/index.html?season=${state.season}&year=${row.year}&noc=${host.noc}`;
+          navigateToViz('geographie', { season: state.season, year: row.year, noc: host.noc });
         } else {
-          window.location.href = `../economie/index.html?saison=${ecoSaison}&year=${row.year}&country=${host.noc}`;
+          navigateToViz('economie', { saison: ecoSaison, year: row.year, country: host.noc });
         }
       });
   });
 
   // Render Sport Drivers Breakdown
-  const breakdown = d3.select('#host-sports-breakdown').html('');
+  const breakdown = domSel('#dom-host-sports-breakdown', '#host-sports-breakdown').html('');
   if (host.sportDrivers && host.sportDrivers.length) {
     breakdown.append('div').attr('class', 'host-sports-header').html(
       `<h3>Disciplines motrices de l’avantage domicile à ${host.city} ${host.year}</h3>` +
@@ -460,10 +481,41 @@ function renderEventDetail(host) {
     });
   }
 
-  bindWikiPreviews(document.querySelector('#event-detail'));
+  bindWikiPreviews(domNode('#dom-event-detail', '#event-detail'));
 }
 
-function showTooltip(event, host) { const metric = state.rankMetric === 'delegationEffect' ? 'Effet sur la taille de la délégation' : 'Effet sur les médailles'; const effect = key => host[key] === null ? 'N/D' : `${host[key] >= 0 ? '+' : ''}${host[key].toFixed(1)} %`; d3.select('#tooltip').html(`<strong>${host.country} · ${host.year}</strong><div class="tooltip-row"><span>Ville hôte</span><b>${host.city}</b></div><div class="tooltip-row"><span>Effet sur la taille de la délégation</span><b>${effect('delegationEffect')}</b></div><div class="tooltip-row"><span>Effet sur les médailles</span><b>${effect('medalsEffect')}</b></div><div class="tooltip-row"><span>PIB / habitant</span><b>${host.gdp ? formatMoney(host.gdp) : 'N/D'}</b></div><div class="tooltip-row"><span>Population</span><b>${host.population ? formatNumber(host.population) : 'N/D'}</b></div><div class="tooltip-row"><span>Nombre d’athlètes</span><b>${host.delegation ? formatNumber(host.delegation) : 'N/D'}</b></div><div class="tooltip-row"><span>Médailles</span><b>${host.medals ? formatNumber(host.medals) : 'N/D'}</b></div>`).classed('visible', true); moveTooltip(event); }
-function moveTooltip(event) { const node = document.querySelector('#tooltip'); const left = Math.min(event.clientX + 16, window.innerWidth - node.offsetWidth - 14); const top = Math.min(event.clientY + 16, window.innerHeight - node.offsetHeight - 14); d3.select('#tooltip').style('left', `${Math.max(8, left)}px`).style('top', `${Math.max(8, top)}px`); }
-Promise.all([d3.csv(OLYMPIC_FILE), d3.csv(GDP_FILE), d3.csv(POPULATION_FILE)]).then(([rows, gdpRows, populationRows]) => initialize(rows, gdpRows, populationRows)).catch(error => { console.error(error); d3.select('#impact').html('<p>Impossible de charger les données de la trajectoire des pays hôtes.</p>'); });
-window.addEventListener('resize', () => { if (model) renderImpact(); });
+function showTooltip(event, host) {
+  const effect = key => host[key] === null ? 'N/D' : `${host[key] >= 0 ? '+' : ''}${host[key].toFixed(1)} %`;
+  d3.select('#tooltip').html(
+    `<strong>${host.country} · ${host.year}</strong>` +
+    `<div class="tooltip-row"><span>Ville hôte</span><b>${host.city}</b></div>` +
+    `<div class="tooltip-row"><span>Effet sur la taille de la délégation</span><b>${effect('delegationEffect')}</b></div>` +
+    `<div class="tooltip-row"><span>Effet sur les médailles</span><b>${effect('medalsEffect')}</b></div>` +
+    `<div class="tooltip-row"><span>PIB / habitant</span><b>${host.gdp ? formatMoney(host.gdp) : 'N/D'}</b></div>` +
+    `<div class="tooltip-row"><span>Population</span><b>${host.population ? formatNumber(host.population) : 'N/D'}</b></div>` +
+    `<div class="tooltip-row"><span>Nombre d’athlètes</span><b>${host.delegation ? formatNumber(host.delegation) : 'N/D'}</b></div>` +
+    `<div class="tooltip-row"><span>Médailles</span><b>${host.medals ? formatNumber(host.medals) : 'N/D'}</b></div>`
+  ).classed('visible', true);
+  moveTooltip(event);
+}
+
+function moveTooltip(event) {
+  const node = document.querySelector('#tooltip');
+  const left = Math.min(event.clientX + 16, window.innerWidth - node.offsetWidth - 14);
+  const top = Math.min(event.clientY + 16, window.innerHeight - node.offsetHeight - 14);
+  d3.select('#tooltip').style('left', `${Math.max(8, left)}px`).style('top', `${Math.max(8, top)}px`);
+}
+
+Promise.all([getOlympicRows(), getGdpRows(), getPopulationRows()])
+  .then(([rows, gdpRows, populationRows]) => initialize(rows, gdpRows, populationRows))
+  .catch(error => {
+    console.error(error);
+    domSel('#dom-impact', '#impact').html('<p>Impossible de charger les données de la trajectoire des pays hôtes.</p>');
+  });
+
+window.addEventListener('resize', () => {
+  if (model) {
+    renderImpact();
+    if (state.detailVisible) renderEventDetail(selectedHost());
+  }
+});

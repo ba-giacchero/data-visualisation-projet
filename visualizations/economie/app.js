@@ -1,4 +1,4 @@
-import { getHostByYear, getHostsByNocOrIso, bindWikiPreviews, wikiLinkHtml } from '../shared-links.js';
+import { getHostByYear, getHostsByNocOrIso, bindWikiPreviews, wikiLinkHtml, ROOT_PREFIX, registerVizController } from '../shared-links.js';
 // Le poids de la richesse
 // Vue d'ensemble : nuage PIB/hab (x) et une mesure olympique (y), un cercle par pays.
 // Synthèse : corrélation richesse-mesure par édition. Vue détail : trajectoires des pays comparés.
@@ -84,63 +84,76 @@ const selectionDe = d => etat.selections.find(s => s.cle === cle(d));
 const estSelectionne = d => selectionDe(d) !== undefined;
 
 // ---------- Format des nombres en français (axes et infobulle) ----------
-d3.formatDefaultLocale({ decimal: ",", thousands: " ", grouping: [3], currency: ["", " $"] });
-const nombre = d3.format(",.0f");
-const decimal = d3.format(".2f");
-const decimal1 = d3.format(",.1f");
+const localeFr = d3.formatLocale({ decimal: ",", thousands: " ", grouping: [3], currency: ["", " $"] });
+const nombre = localeFr.format(",.0f");
+const decimal = localeFr.format(".2f");
+const decimal1 = localeFr.format(",.1f");
 const nomSaison = s => (s === "ete" ? "été" : "hiver");
 const nomJeux = () => (etat.jeux === "olympiques" ? "Jeux olympiques" : "Jeux paralympiques");
 const boycott = a => (etat.jeux === "olympiques" && etat.saison === "ete" ? BOYCOTTS[a] : undefined);
 
 // ---------- Chargement et indicateurs ----------
-// Table code pays (ISO, ou code CIO pour les codes de service) -> continent, commune aux deux fichiers
-const tableContinents = d3.csv("../../tables_code_pays/code_continent.csv")
+const tableContinents = d3.csv(`${ROOT_PREFIX}tables_code_pays/code_continent.csv`)
   .then(lignes => new Map(lignes.map(d => [d.code, d.continent])));
 let requete = 0; // seule la dernière demande de fichier est affichée
 
-
-let urlDejaAppliquee = false;
-function appliquerParametresUrl() {
-  if (urlDejaAppliquee) return;
-  urlDejaAppliquee = true;
-  const params = new URLSearchParams(window.location.search);
-  const sParam = params.get("saison") || params.get("season");
+function appliquerParametres(params = {}, redessiner = false) {
+  const sParam = params.saison || params.season;
+  let saisonChangee = false;
   if (sParam === "hiver" || sParam === "Winter") {
+    saisonChangee = etat.saison !== "hiver";
     etat.saison = "hiver";
     d3.selectAll("input[name=saison]").property("checked", function() { return this.value === "hiver"; });
   } else if (sParam === "ete" || sParam === "Summer") {
+    saisonChangee = etat.saison !== "ete";
     etat.saison = "ete";
     d3.selectAll("input[name=saison]").property("checked", function() { return this.value === "ete"; });
   }
-  const y = +params.get("year") || +params.get("annee");
+  const y = +(params.year || params.annee);
   if (y) etat.annee = y;
-  const m = params.get("mesure");
+  const m = params.mesure;
   if (m && MESURES[m]) {
     etat.mesure = m;
     d3.selectAll("input[name=mesure]").property("checked", function() { return this.value === m; });
   }
-  const c = params.get("country") || params.get("noc") || params.get("iso3");
-  if (c) {
-    const code = c.toUpperCase();
-    const match = donnees.find(d => d.saison === etat.saison && (d.pays === code || d.iso3 === code || d.nom.toLowerCase() === c.toLowerCase()));
+  const c = params.country || params.noc || params.iso3;
+  if (c && donnees.length) {
+    const code = String(c).toUpperCase();
+    const match = donnees.find(d => d.saison === etat.saison && (d.pays === code || d.iso3 === code || d.nom.toLowerCase() === String(c).toLowerCase()));
     if (match && match.iso3 !== "exclu") {
       const k = cle(match);
       if (!etat.selections.some(s => s.cle === k)) {
-        etat.selections.push({ cle: k, nom: match.nom, couleur: COULEURS[0] });
+        if (etat.selections.length >= MAX_COMPARAISON) etat.selections.shift();
+        const couleur = COULEURS.find(col => !etat.selections.some(s => s.couleur === col)) || COULEURS[0];
+        etat.selections.push({ cle: k, nom: match.nom, couleur });
       }
     }
   }
+  if (redessiner && donnees.length) {
+    arreterLecture();
+    majCurseurAnnee();
+    majLegende();
+    if (saisonChangee) dessinerAvecFondu();
+    else dessiner(DUREE_GLISSEMENT);
+    afficherDetail();
+  }
 }
 
+let urlDejaAppliquee = false;
 function charger() {
   const numero = ++requete;
-  Promise.all([d3.csv(`data/${etat.jeux}.csv`, d3.autoType), tableContinents]).then(([lignes, continents]) => {
+  Promise.all([d3.csv(`${ROOT_PREFIX}visualizations/economie/data/${etat.jeux}.csv`, d3.autoType), tableContinents]).then(([lignes, continents]) => {
     if (numero !== requete) return;
     d3.select("#couverture").classed("erreur", false);
     for (const d of lignes) d.continent = continents.get(cle(d));
     donnees = calculerIndicateurs(lignes);
     construireEchelles();
-    appliquerParametresUrl();
+    if (!urlDejaAppliquee) {
+      urlDejaAppliquee = true;
+      const urlParams = Object.fromEntries(new URLSearchParams(window.location.search).entries());
+      appliquerParametres(urlParams, false);
+      registerVizController('economie', params => appliquerParametres(params, true));
+    }
     majCurseurAnnee();
     majRecherche();
     majLegende();
@@ -295,8 +308,8 @@ function creerCadre(selecteur, marge) {
 }
 
 function majAxes(cadre, t) {
-  const axe = mesure().log ? d3.axisLeft(echelleY()).ticks(6, "~g") : d3.axisLeft(echelleY()).ticks(6);
-  cadre.axeX.transition(t).call(d3.axisBottom(cadre.x).ticks(6, "~s"));
+  const axe = mesure().log ? d3.axisLeft(echelleY()).ticks(6, localeFr.format("~g")) : d3.axisLeft(echelleY()).ticks(6, localeFr.format("~g"));
+  cadre.axeX.transition(t).call(d3.axisBottom(cadre.x).ticks(6, localeFr.format("~s")));
   cadre.axeY.transition(t).call(axe);
   cadre.titreY.text(mesure().titre);
   cadre.bandeZero.style("display", mesure().bandeZero ? null : "none");
@@ -488,7 +501,7 @@ evolution.grille = evolution.svg.append("g").attr("class", "grille");
 evolution.axeX = evolution.svg.append("g")
   .attr("transform", `translate(0,${H_EVOLUTION - M_EVOLUTION.bas})`);
 evolution.svg.append("g").attr("transform", `translate(${M_EVOLUTION.gauche},0)`)
-  .call(d3.axisLeft(evolution.y).tickValues([-1, -0.5, 0, 0.5, 1]).tickFormat(d3.format("~g")));
+  .call(d3.axisLeft(evolution.y).tickValues([-1, -0.5, 0, 0.5, 1]).tickFormat(localeFr.format("~g")));
 evolution.svg.append("text").attr("class", "titre-axe")
   .attr("transform", `translate(14,${M_EVOLUTION.haut}) rotate(-90)`).attr("text-anchor", "end")
   .text("ρ de Spearman");
@@ -661,21 +674,25 @@ function afficherTexteInfobulle(event, html) {
   deplacerInfobulle(event);
 }
 
-// Suit la souris, ou se cale sur l'élément au clavier ; bascule de côté près des bords
+// Suit la souris en coordonnées fenêtre (position: fixed) ou se cale sur l'élément au clavier
 function deplacerInfobulle(event) {
-  let px = event.pageX, py = event.pageY;
-  if (px == null) {
+  let cx = event.clientX, cy = event.clientY;
+  if (cx == null && event.currentTarget) {
     const r = event.currentTarget.getBoundingClientRect();
-    px = r.right + window.scrollX;
-    py = r.top + window.scrollY;
+    cx = r.right;
+    cy = r.top;
   }
   const n = infobulle.node();
-  let gauche = px + 12, haut = py + 12;
-  if (gauche + n.offsetWidth > window.scrollX + document.documentElement.clientWidth) {
-    gauche = px - n.offsetWidth - 12;
+  if (!n) return;
+  let gauche = (cx || 0) + 14;
+  let haut = (cy || 0) + 14;
+  if (gauche + n.offsetWidth > window.innerWidth - 12) {
+    gauche = (cx || 0) - n.offsetWidth - 12;
   }
-  if (haut + n.offsetHeight > window.scrollY + window.innerHeight) haut = py - n.offsetHeight - 12;
-  infobulle.style("left", `${Math.max(0, gauche)}px`).style("top", `${Math.max(0, haut)}px`);
+  if (haut + n.offsetHeight > window.innerHeight - 12) {
+    haut = (cy || 0) - n.offsetHeight - 12;
+  }
+  infobulle.style("left", `${Math.max(8, gauche)}px`).style("top", `${Math.max(8, haut)}px`);
 }
 function cacherInfobulle() {
   infobulle.style("display", "none");
@@ -931,9 +948,6 @@ function terminerTrajectoire(traces) {
     .on("mouseleave", cacherInfobulle);
   etapes.append("circle").attr("r", 3.5);
 
-  // Étiquettes sans chevauchement (ni entre elles, ni sur les points) : dernière puis première
-  // édition de chaque pays, puis les autres si la place est libre. En comparaison, seules la
-  // première et la dernière sont candidates, et la dernière porte aussi le nom du pays.
   const plusieurs = traces.size() > 1;
   const derniers = traces.data().map(p => p.tracables[p.tracables.length - 1]);
   const premiers = traces.data().map(p => p.tracables[0]);
@@ -941,17 +955,17 @@ function terminerTrajectoire(traces) {
   const texte = d => (plusieurs && derniers.includes(d) ? `${d.nom} ${d.annee}` : String(d.annee));
   const prises = etapes.data().map(d => {
     const px = trajectoire.x(d.gdppc), py = positionY(d);
-    return { x0: px - 3, x1: px + 3, y0: py - 3, y1: py + 3 }; // l'étiquette du point commence à 5 px
+    return { x0: px - 3, x1: px + 3, y0: py - 3, y1: py + 3 };
   });
   const libre = b => prises.every(p => b.x1 < p.x0 || b.x0 > p.x1 || b.y1 < p.y0 || b.y0 > p.y1);
-  const aGauche = new Map(); // étiquette retenue -> placée à gauche du point ?
+  const aGauche = new Map();
   for (const d of ordre) {
     const px = trajectoire.x(d.gdppc), py = positionY(d);
     const largeur = texte(d).length * 6 + 4;
     const boites = [
       { gauche: false, x0: px + 5, x1: px + 5 + largeur, y0: py - 16, y1: py - 3 },
       { gauche: true, x0: px - 5 - largeur, x1: px - 5, y0: py - 16, y1: py - 3 }
-    ].filter(b => b.x1 <= L - 5 && b.x0 >= trajectoire.marge.gauche);  // à droite d'abord, sans déborder
+    ].filter(b => b.x1 <= L - 5 && b.x0 >= trajectoire.marge.gauche);
     const boite = boites.find(libre);
     if (boite) {
       prises.push(boite);
@@ -971,7 +985,7 @@ function majCurseurAnnee() {
   if (!annees.includes(etat.annee)) {
     etat.annee = etat.annee == null
       ? annees[annees.length - 1]
-      : annees[d3.minIndex(annees, a => Math.abs(a - etat.annee))]; // édition la plus proche
+      : annees[d3.minIndex(annees, a => Math.abs(a - etat.annee))];
   }
   d3.select("#annee").attr("max", annees.length - 1);
   afficherAnnee();
@@ -1009,7 +1023,7 @@ let lecture = null;
 
 function basculerLecture() {
   if (lecture) return arreterLecture();
-  if (etat.annee === annees[annees.length - 1]) changerAnnee(annees[0]); // repartir du début
+  if (etat.annee === annees[annees.length - 1]) changerAnnee(annees[0]);
   lecture = d3.interval(() => {
     const i = annees.indexOf(etat.annee);
     if (i >= annees.length - 1) return arreterLecture();
@@ -1034,22 +1048,20 @@ function majRecherche() {
 }
 
 d3.select("#recherche").on("input change", e => {
-  // Pendant la frappe, seul un choix dans la liste compte : « Congo » ne doit pas partir
-  // avant « Democratic Republic of the Congo »
   if (e.type === "input" && e.inputType && e.inputType !== "insertReplacementText") return;
   const champ = d3.select(e.target);
   const valeur = e.target.value.trim().toLowerCase();
   if (!valeur) return champ.classed("introuvable", false);
   const noms = [...nomsRecherche.keys()];
   let nom = noms.find(n => n.toLowerCase() === valeur);
-  if (!nom && e.type === "change") {                      // validation : accepte un nom partiel unique
+  if (!nom && e.type === "change") {
     const proches = noms.filter(n => n.toLowerCase().includes(valeur));
     if (proches.length === 1) nom = proches[0];
   }
   champ.classed("introuvable", e.type === "change" && !nom);
   if (nom) {
     ajouter(nomsRecherche.get(nom), nom);
-    e.target.value = "";                                  // prêt pour le pays suivant
+    e.target.value = "";
   }
 });
 

@@ -1,4 +1,6 @@
-// Système de liens contextuels et d'aperçus au survol (façon Wikipédia)
+// Système unifié de données partagées, liens contextuels (façon Wikipédia) et navigation fluide par scroll
+
+export const ROOT_PREFIX = window.location.pathname.includes('/visualizations/') ? '../../' : '';
 
 export const HOST_EDITIONS = [
   { season: 'Summer', year: 1960, city: 'Rome', country: 'Italie', noc: 'ITA', iso3: 'ITA' },
@@ -48,6 +50,89 @@ export function getHostsByNocOrIso(code, season = 'Summer') {
   return list.filter(h => h.noc === code || h.iso3 === code);
 }
 
+// Cache mémoire partagé pour éviter de recharger athlete_events.csv (41 Mo) plusieurs fois dans la vue unifiée
+let olympicPromise = null;
+let gdpPromise = null;
+let popPromise = null;
+let worldPromise = null;
+
+export function getOlympicRows() {
+  if (!olympicPromise) {
+    olympicPromise = d3.csv(`${ROOT_PREFIX}120 years of Olympic history/athlete_events.csv`);
+  }
+  return olympicPromise;
+}
+
+export function getGdpRows() {
+  if (!gdpPromise) {
+    gdpPromise = d3.csv(`${ROOT_PREFIX}Global GDP-PIB per Capita Dataset (1960-present)/pib_per_capita_countries_dataset.csv`);
+  }
+  return gdpPromise;
+}
+
+export function getPopulationRows() {
+  if (!popPromise) {
+    popPromise = d3.csv(`${ROOT_PREFIX}Demographic data/wdi_wide.csv`);
+  }
+  return popPromise;
+}
+
+export function getWorldTopo() {
+  if (!worldPromise) {
+    worldPromise = d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+  }
+  return worldPromise;
+}
+
+// Contrôleurs de sections pour la navigation fluide sur une seule page
+const controllers = new Map();
+const pendingParams = new Map();
+
+export function registerVizController(vizName, handler) {
+  controllers.set(vizName, handler);
+  if (pendingParams.has(vizName)) {
+    const params = pendingParams.get(vizName);
+    pendingParams.delete(vizName);
+    handler(params);
+  }
+}
+
+export function navigateToViz(vizName, params = {}, subSelector = null) {
+  hideWikiPreview();
+  const targetSection = document.getElementById(`sec-${vizName}`);
+  const handler = controllers.get(vizName);
+  if (targetSection) {
+    if (handler) handler(params);
+    else pendingParams.set(vizName, params);
+    const scrollTarget = (subSelector && document.querySelector(subSelector)) || targetSection;
+    scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return true;
+  }
+  // Fallback si ouvert hors de la page unifiée
+  const query = new URLSearchParams(params).toString();
+  window.location.href = `${ROOT_PREFIX}index.html?${query}#sec-${vizName}`;
+  return false;
+}
+
+function parseHrefToTarget(href) {
+  if (!href) return null;
+  let vizName = null;
+  if (href.includes('geographie')) vizName = 'geographie';
+  else if (href.includes('economie')) vizName = 'economie';
+  else if (href.includes('domicile')) vizName = 'domicile';
+  else if (href.includes('anatomie')) vizName = 'anatomie';
+  if (!vizName) return null;
+
+  const qIndex = href.indexOf('?');
+  const params = {};
+  if (qIndex !== -1) {
+    const search = href.slice(qIndex + 1).split('#')[0];
+    const usp = new URLSearchParams(search);
+    for (const [k, v] of usp.entries()) params[k] = v;
+  }
+  return { vizName, params };
+}
+
 let previewNode = null;
 
 function ensurePreviewNode() {
@@ -71,9 +156,9 @@ export function showWikiPreview(event, { eyebrow, title, body, metrics = [] }) {
     ? `<div class="wiki-preview-metrics">${metrics.map(([k, v]) => `<div class="wiki-preview-row"><span>${k}</span><b>${v}</b></div>`).join('')}</div>`
     : '';
   node.innerHTML = `
-    <div class="wiki-preview-eyebrow">${eyebrow}</div>
-    <div class="wiki-preview-title">${title}</div>
-    <div class="wiki-preview-body">${body}</div>
+    <div class="wiki-preview-eyebrow">${eyebrow || ''}</div>
+    <div class="wiki-preview-title">${title || ''}</div>
+    <div class="wiki-preview-body">${body || ''}</div>
     ${metricsHtml}
   `;
   node.classList.add('visible');
@@ -98,13 +183,21 @@ export function hideWikiPreview() {
 
 export function bindWikiPreviews(root = document) {
   if (!root) return;
-  root.querySelectorAll('[data-wiki-preview]').forEach(el => {
+  root.querySelectorAll('[data-wiki-preview], .wiki-link[data-title]').forEach(el => {
     if (el.dataset.wikiBound) return;
     el.dataset.wikiBound = '1';
     el.addEventListener('mouseenter', event => {
       try {
-        const data = JSON.parse(el.dataset.wikiPreview);
-        showWikiPreview(event, data);
+        if (el.dataset.wikiPreview) {
+          showWikiPreview(event, JSON.parse(el.dataset.wikiPreview));
+        } else if (el.dataset.title) {
+          showWikiPreview(event, {
+            eyebrow: el.dataset.eyebrow || '',
+            title: el.dataset.title || '',
+            body: el.dataset.body || '',
+            metrics: []
+          });
+        }
       } catch (e) {
         console.error(e);
       }
@@ -112,6 +205,19 @@ export function bindWikiPreviews(root = document) {
     el.addEventListener('mousemove', moveWikiPreview);
     el.addEventListener('mouseleave', hideWikiPreview);
     el.addEventListener('blur', hideWikiPreview);
+    el.addEventListener('click', event => {
+      if (el.dataset.viz) {
+        event.preventDefault();
+        const p = el.dataset.params ? JSON.parse(el.dataset.params) : {};
+        navigateToViz(el.dataset.viz, p);
+        return;
+      }
+      const target = parseHrefToTarget(el.getAttribute('href'));
+      if (target && document.getElementById(`sec-${target.vizName}`)) {
+        event.preventDefault();
+        navigateToViz(target.vizName, target.params);
+      }
+    });
   });
 }
 
