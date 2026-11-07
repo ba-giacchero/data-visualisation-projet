@@ -218,6 +218,7 @@ function setupControls() {
   domSel('#dom-close-detail', '#close-detail').on('click', () => {
     state.detailVisible = false;
     domSel('#dom-event-detail', '#event-detail').attr('hidden', true);
+    domSel('#dom-host-sports-breakdown', '#host-sports-breakdown').attr('hidden', true);
   });
 }
 
@@ -443,7 +444,7 @@ function renderEventDetail(host) {
       });
   });
 
-  const breakdown = domSel('#dom-host-sports-breakdown', '#host-sports-breakdown').html('');
+  const breakdown = domSel('#dom-host-sports-breakdown', '#host-sports-breakdown').attr('hidden', null).html('');
   if (host.sportDrivers && host.sportDrivers.length) {
     breakdown.append('div').attr('class', 'host-sports-header').html(
       `<h3>Disciplines portant l’effet domicile à ${host.city} ${host.year}</h3>` +
@@ -481,6 +482,7 @@ function renderEventDetail(host) {
   }
 
   bindWikiPreviews(domNode('#dom-event-detail', '#event-detail'));
+  bindWikiPreviews(domNode('#dom-host-sports-breakdown', '#host-sports-breakdown'));
 }
 
 function showTooltip(event, host) {

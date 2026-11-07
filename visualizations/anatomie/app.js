@@ -342,23 +342,23 @@ function drawChart() {
     .attr('class', row => lineClass(row))
     .attr('d', path);
 
-  // Hitbox élargie (18px) transparente pour un survol et un clic faciles
+  // Hitbox élargie (16px) transparente pour un survol et un clic faciles sans déplacer les nœuds DOM
   groups.append('path')
     .attr('class', 'sport-hit')
     .attr('d', path)
     .attr('fill', 'none')
     .attr('stroke', 'transparent')
-    .attr('stroke-width', 18)
+    .attr('stroke-width', 16)
     .style('pointer-events', 'stroke')
     .style('cursor', 'pointer')
     .on('mouseenter', function(event, row) {
-      d3.select(this.parentNode). raise().select('.sport-line').classed('hovered', true);
-      plot.selectAll('.selected-group').raise();
+      plot.selectAll('.sport-line').classed('hovered', false);
+      d3.select(this.parentNode).select('.sport-line').classed('hovered', true);
       showTooltip(event, row);
     })
     .on('mousemove', moveTooltip)
     .on('mouseleave', function() {
-      d3.select(this.parentNode).select('.sport-line').classed('hovered', false);
+      plot.selectAll('.sport-line').classed('hovered', false);
       d3.select('#tooltip').classed('visible', false);
     })
     .on('click', (event, row) => {
@@ -374,6 +374,11 @@ function drawChart() {
       anatSel('#anat-sport-b', '#sport-b').property('value', state.selected[1]);
       render();
     });
+
+  svg.on('mouseleave', () => {
+    plot.selectAll('.sport-line').classed('hovered', false);
+    d3.select('#tooltip').classed('visible', false);
+  });
 
   groups.classed('selected-group', row => row.sport === state.selected[0] || row.sport === state.selected[1]);
   plot.selectAll('.selected-group').raise();
