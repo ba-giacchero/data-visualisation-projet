@@ -1,22 +1,29 @@
-import { getHostByYear, bindWikiPreviews, wikiLinkHtml, getOlympicRows, registerVizController, navigateToViz } from '../shared-links.js';
+import { bindWikiPreviews, wikiLinkHtml, getOlympicRows, registerVizController, sportFr, countryFr } from '../shared-links.js';
 
 const state = {
   season: 'Summer',
   year: 2016,
   sex: 'ALL',
-  cohort: 'all',
   selected: ['Athletics', 'Gymnastics'],
-  brush: null,
-  focusNoc: null
+  brush: null
 };
 let rawRecords = [];
 let currentRows = [];
+// Athlètes mesurés (âge, taille, poids) minimum pour calculer le profil d'un sport.
+const MIN_MEASURED = 20;
+let excludedSports = 0;  // sports écartés faute d'athlètes mesurés, pour l'édition et les filtres en cours
 let dimensions;
 let scales;
 let lineSelection;
 
-const formatNumber = d3.format(',');
-const formatValue = (dimension, value) => dimension === 'age' ? `${value.toFixed(1)} ans` : `${value.toFixed(1)} ${dimension === 'height' ? 'cm' : 'kg'}`;
+// Nombres au format français : « 2 165 » et « 26,5 »
+const localeFr = d3.formatLocale({ decimal: ',', thousands: ' ', grouping: [3], currency: ['', ' €'], minus: '-' });
+const formatNumber = localeFr.format(',');
+const formatDecimal = localeFr.format('.1f');
+const formatValue = (dimension, value) => `${formatDecimal(value)} ${dimension === 'age' ? 'ans' : dimension === 'height' ? 'cm' : 'kg'}`;
+// Boutons à deux ou trois positions (même composant que les vues 2 et 3)
+const frenchList = items => items.length > 1 ? `${items.slice(0, -1).join(', ')} et ${items[items.length - 1]}` : items[0] || '';
+const setRadio = (name, value) => d3.selectAll(`input[name=${name}]`).property('checked', function () { return this.value === value; });
 const dimensionsLabels = { age: 'Âge (ans)', height: 'Taille (cm)', weight: 'Poids (kg)' };
 const anatSel = (scoped, fallback) => document.querySelector(scoped) ? d3.select(scoped) : d3.select(fallback);
 const anatNode = (scoped, fallback) => document.querySelector(scoped) || document.querySelector(fallback);
@@ -36,7 +43,7 @@ function prepareRaw(rows) {
       sport: row.Sport,
       sex: row.Sex,
       noc: row.NOC,
-      country: row.Team ? row.Team.replace(/-\d+$/, '') : row.NOC,
+      country: countryFr(row.NOC, row.Team ? row.Team.replace(/-\d+$/, '') : row.NOC), // nom français (table de correspondance)
       id: row.ID,
       age: +row.Age,
       height: +row.Height,
@@ -80,20 +87,19 @@ function computeProfiles() {
   const sportsMap = d3.group(uniqueAthletes, d => d.sport);
 
   const profiles = [];
+  excludedSports = 0;
   for (const [sport, athletes] of sportsMap.entries()) {
     const medalists = athletes.filter(a => a.isMedalist);
     const nonMedalists = athletes.filter(a => !a.isMedalist);
-    const activeSet = state.cohort === 'medalists' ? medalists : athletes;
-    if (!activeSet.length) continue;
+    // Médiane trop instable sous le seuil : le sport est écarté (et compté pour le signaler)
+    if (athletes.length < MIN_MEASURED) { excludedSports++; continue; }
 
     const byNoc = d3.group(athletes, a => a.noc);
     const cList = [...byNoc.entries()].map(([noc, list]) => ({
       noc,
       country: list[0].country,
       count: list.length,
-      medals: sportMedalsByNoc.get(`${sport}|${noc}`)?.size || 0,
-      medianHeight: d3.median(list, a => a.height),
-      medianWeight: d3.median(list, a => a.weight)
+      medals: sportMedalsByNoc.get(`${sport}|${noc}`)?.size || 0
     })).sort((a, b) => d3.descending(a.medals, b.medals) || d3.descending(a.count, b.count));
 
     const statsFor = list => {
@@ -112,15 +118,19 @@ function computeProfiles() {
     profiles.push({
       year: state.year,
       sport,
-      count: activeSet.length,
+      label: sportFr(sport), // nom affiché en français ; `sport` reste la clé anglaise des données
+      count: athletes.length,
       totalAthletes: athletes.length,
       totalMedalists: medalists.length,
-      age: d3.median(activeSet, a => a.age),
-      height: d3.median(activeSet, a => a.height),
-      weight: d3.median(activeSet, a => a.weight),
+      age: d3.median(athletes, a => a.age),
+      height: d3.median(athletes, a => a.height),
+      weight: d3.median(athletes, a => a.weight),
       medalistStats: statsFor(medalists),
       nonMedalistStats: statsFor(nonMedalists),
-      allStats: statsFor(athletes),
+      bySex: Object.fromEntries(['F', 'M'].map(sx => [sx, {
+        med: statsFor(medalists.filter(a => a.sex === sx)),
+        non: statsFor(nonMedalists.filter(a => a.sex === sx))
+      }])),
       countriesCount: cList.length,
       topCountries: cList.slice(0, 5)
     });
@@ -130,6 +140,7 @@ function computeProfiles() {
 }
 
 function applyParams(params = {}) {
+  stopPlay();
   const seasonParam = params.season || params.saison;
   if (seasonParam === 'Winter' || seasonParam === 'hiver') state.season = 'Winter';
   else if (seasonParam === 'Summer' || seasonParam === 'ete') state.season = 'Summer';
@@ -142,15 +153,10 @@ function applyParams(params = {}) {
   const sexParam = params.sex;
   if (sexParam && ['ALL', 'F', 'M'].includes(String(sexParam).toUpperCase())) state.sex = String(sexParam).toUpperCase();
 
-  const cohortParam = params.cohort;
-  if (cohortParam && ['all', 'medalists'].includes(cohortParam)) state.cohort = cohortParam;
 
-  const nocParam = params.noc;
-  if (nocParam) state.focusNoc = nocParam.toUpperCase();
 
-  anatSel('#anat-season', '#season').property('value', state.season);
-  anatSel('#anat-sex', '#sex').property('value', state.sex);
-  anatSel('#anat-cohort', '#cohort').property('value', state.cohort);
+  setRadio('anat-season', state.season);
+  setRadio('anat-sex', state.sex);
   updateYearMenu();
 
   const available = computeProfiles().map(r => r.sport);
@@ -170,38 +176,78 @@ function applyParams(params = {}) {
   render();
 }
 
+// Édition : curseur sur les années de la saison (comme la vue 2), l'année choisie s'affiche à côté
 function updateYearMenu() {
   const years = seasonYears(state.season);
   if (!years.includes(state.year)) state.year = years[years.length - 1];
-  const sel = anatSel('#anat-year', '#year');
-  sel.selectAll('option').data(years).join('option').attr('value', d => d).text(d => d);
-  sel.property('value', state.year);
+  d3.select('#anat-year').attr('max', years.length - 1)
+    .property('value', years.indexOf(state.year)).attr('aria-valuetext', state.year);
+  d3.select('#anat-year-value').text(state.year);
+}
+
+// ---------- Lecture : les éditions défilent une par une (même rythme que la vue 2) ----------
+const PLAY_STEP = 1000; // ms par édition
+let playTimer = null;
+
+function stopPlay() {
+  if (playTimer) playTimer.stop();
+  playTimer = null;
+  d3.select('#anat-play').text('▶ Lecture').attr('aria-pressed', false);
+}
+
+function setYear(year) {
+  state.year = year;
+  updateYearMenu();
+  updateSportMenus();
+  render();
+}
+
+function togglePlay() {
+  if (playTimer) return stopPlay();
+  const years = seasonYears(state.season);
+  if (state.year === years[years.length - 1]) setYear(years[0]); // depuis la fin : on repart du début
+  playTimer = d3.interval(() => {
+    const list = seasonYears(state.season);
+    const i = list.indexOf(state.year);
+    if (i >= list.length - 1) return stopPlay();
+    setYear(list[i + 1]);
+  }, PLAY_STEP);
+  d3.select('#anat-play').text('❚❚ Pause').attr('aria-pressed', true);
 }
 
 function initialize(rows) {
   rawRecords = prepareRaw(rows);
 
-  anatSel('#anat-season', '#season').property('value', state.season).on('change', event => {
+  setRadio('anat-season', state.season);
+  d3.selectAll('input[name=anat-season]').on('change', event => {
+    stopPlay();
     state.season = event.target.value;
     state.brush = null;
     updateYearMenu();
     updateSportMenus();
     render();
   });
-  anatSel('#anat-year', '#year').on('change', event => { state.year = +event.target.value; updateSportMenus(); render(); });
-  anatSel('#anat-sex', '#sex').property('value', state.sex).on('change', event => { state.sex = event.target.value; updateSportMenus(); render(); });
-  anatSel('#anat-cohort', '#cohort').property('value', state.cohort).on('change', event => { state.cohort = event.target.value; updateSportMenus(); render(); });
+  d3.select('#anat-play').on('click', togglePlay);
+  d3.select('#anat-year').on('input', event => {
+    stopPlay();
+    state.year = seasonYears(state.season)[+event.target.value];
+    d3.select('#anat-year-value').text(state.year);
+    d3.select('#anat-year').attr('aria-valuetext', state.year);
+    updateSportMenus();
+    render();
+  });
+  setRadio('anat-sex', state.sex);
+  d3.selectAll('input[name=anat-sex]').on('change', event => { state.sex = event.target.value; updateSportMenus(); render(); });
 
   anatSel('#anat-reset', '#reset').on('click', () => {
+    stopPlay();
     state.season = 'Summer';
     state.year = 2016;
     state.sex = 'ALL';
-    state.cohort = 'all';
     state.selected = ['Athletics', 'Gymnastics'];
     state.brush = null;
-    anatSel('#anat-season', '#season').property('value', state.season);
-    anatSel('#anat-sex', '#sex').property('value', state.sex);
-    anatSel('#anat-cohort', '#cohort').property('value', state.cohort);
+    setRadio('anat-season', state.season);
+    setRadio('anat-sex', state.sex);
     updateYearMenu();
     updateSportMenus();
     render();
@@ -212,102 +258,32 @@ function initialize(rows) {
   registerVizController('anatomie', applyParams);
 }
 
+// Choisir pour un emplacement le sport déjà affiché dans l'autre : les deux sports sont échangés
+function setSport(index, sport) {
+  if (state.selected[1 - index] === sport) state.selected[1 - index] = state.selected[index];
+  state.selected[index] = sport;
+  anatSel('#anat-sport-a', '#sport-a').property('value', state.selected[0]);
+  anatSel('#anat-sport-b', '#sport-b').property('value', state.selected[1]);
+}
+
 function updateSportMenus() {
   const profiles = computeProfiles();
   const sports = profiles.map(row => row.sport);
   [['#anat-sport-a', '#sport-a'], ['#anat-sport-b', '#sport-b']].forEach(([scoped, fallback], index) => {
     const select = anatSel(scoped, fallback);
-    select.selectAll('option').data(sports).join('option').attr('value', d => d).text(d => d);
+    select.selectAll('option').data(sports).join('option').attr('value', d => d).text(d => sportFr(d));
     if (!sports.includes(state.selected[index])) {
       state.selected[index] = sports.find(s => s !== state.selected[1 - index]) || sports[index] || '';
     }
     select.property('value', state.selected[index]).on('change', event => {
-      state.selected[index] = event.target.value;
+      setSport(index, event.target.value);
       render();
     });
   });
 }
 
-function renderNarrative() {
-  const host = getHostByYear(state.year, state.season);
-  const ecoSaison = state.season === 'Winter' ? 'hiver' : 'ete';
-  const rowA = currentRows.find(r => r.sport === state.selected[0]);
-  const rowB = currentRows.find(r => r.sport === state.selected[1]);
-
-  const sportLink = row => {
-    if (!row) return '';
-    const topStr = row.topCountries.slice(0, 3).map(c => `${c.country} (${c.medals} méd.)`).join(', ');
-    return wikiLinkHtml({
-      href: `../geographie/index.html?season=${state.season}&year=${state.year}&sport=${encodeURIComponent(row.sport)}&metric=medals`,
-      text: row.sport,
-      eyebrow: 'La carte des groupes sportifs',
-      title: `${row.sport} (${state.year})`,
-      body: `Voir la carte mondiale des médailles et des effectifs engagés en ${row.sport}.`,
-      metrics: [
-        ['Pays représentés', `${row.countriesCount} nations`],
-        ['Nations dominantes', topStr || 'N/D'],
-        ['Profil médian', `${row.height.toFixed(0)} cm, ${row.weight.toFixed(0)} kg`]
-      ]
-    });
-  };
-
-  const topCountryLink = row => {
-    const top = row?.topCountries?.[0];
-    if (!top) return '';
-    return wikiLinkHtml({
-      href: `../economie/index.html?saison=${ecoSaison}&year=${state.year}&country=${encodeURIComponent(top.noc)}`,
-      text: `${top.country} (${top.medals} méd.)`,
-      eyebrow: 'Le poids de la richesse',
-      title: `${top.country} (${top.noc}) en ${state.year}`,
-      body: `Première nation en ${row.sport}. Consulter le PIB par habitant et l’efficacité olympique de ${top.country}.`,
-      metrics: [
-        ['Bilan en ' + row.sport, `${top.medals} méd., ${top.count} athl.`],
-        ['Gabarit national médian', `${top.medianHeight.toFixed(0)} cm, ${top.medianWeight.toFixed(0)} kg`]
-      ]
-    });
-  };
-
-  let hostPart = `En <strong>${state.year}</strong>`;
-  if (host) {
-    const domLink = wikiLinkHtml({
-      href: `../domicile/index.html?season=${state.season}&year=${host.year}`,
-      text: `${host.city} ${host.year}`,
-      eyebrow: 'Trajectoire des pays hôtes',
-      title: `${host.country} à ${host.city} ${host.year}`,
-      body: `Analyser comment l’accueil des Jeux a transformé la délégation et les médailles de ${host.country}.`,
-      metrics: [
-        ['Pays hôte', `${host.country} (${host.noc})`],
-        ['Ville hôte', host.city]
-      ]
-    });
-    const ecoHostLink = wikiLinkHtml({
-      href: `../economie/index.html?saison=${ecoSaison}&year=${host.year}&country=${host.noc}`,
-      text: host.country,
-      eyebrow: 'Le poids de la richesse',
-      title: `${host.country} (${host.year})`,
-      body: `Comparer le PIB par habitant et l’efficacité de ${host.country} face au reste du monde.`,
-      metrics: [
-        ['Code CIO', host.noc],
-        ['Édition accueillie', `${host.city} ${host.year}`]
-      ]
-    });
-    hostPart = `Aux Jeux de ${domLink} organisés par ${ecoHostLink}`;
-  }
-
-  const cohortLabel = state.cohort === 'medalists' ? 'médaillés' : 'athlètes mesurés';
-  let comparePart = '';
-  if (rowA && rowB) {
-    const leadA = topCountryLink(rowA);
-    comparePart = `, ${sportLink(rowA)} (${formatNumber(rowA.count)} ${cohortLabel}, médiane de ${rowA.height.toFixed(0)} cm et ${rowA.weight.toFixed(0)} kg${leadA ? `, dominé par ${leadA}` : ''}) s’oppose à ${sportLink(rowB)} (${formatNumber(rowB.count)} ${cohortLabel}, ${rowB.height.toFixed(0)} cm et ${rowB.weight.toFixed(0)} kg).`;
-  }
-
-  anatSel('#anat-wiki-narrative', '#wiki-narrative').html(`${hostPart}${comparePart}`);
-  bindWikiPreviews(anatNode('#anat-wiki-narrative', '#wiki-narrative'));
-}
-
 function render() {
-  currentRows = computeProfiles().slice(0, 36);
-  renderNarrative();
+  currentRows = computeProfiles(); // tous les sports au-dessus du seuil de mesure (plus de limite cachée à 36)
   drawChart();
   renderDetailPanel();
 }
@@ -362,13 +338,14 @@ function drawChart() {
       d3.select('#tooltip').classed('visible', false);
     })
     .on('click', (event, row) => {
+      // Un clic choisit le sport 1, Maj+clic le sport 2 (plus de changement de vue caché sur le sport déjà choisi)
       if (event.shiftKey || event.altKey) {
-        state.selected[1] = row.sport;
+        if (state.selected[1] === row.sport) return;
+        setSport(1, row.sport);
       } else if (state.selected[0] === row.sport) {
-        navigateToViz('geographie', { season: state.season, year: state.year, sport: row.sport });
         return;
       } else {
-        state.selected[0] = row.sport;
+        setSport(0, row.sport);
       }
       anatSel('#anat-sport-a', '#sport-a').property('value', state.selected[0]);
       anatSel('#anat-sport-b', '#sport-b').property('value', state.selected[1]);
@@ -418,8 +395,14 @@ function updateSelectionLabel() {
   anatSel('#anat-selection-label', '#selection-label').text(
     state.brush
       ? `Taille filtrée : ${state.brush[0].toFixed(0)} à ${state.brush[1].toFixed(0)} cm (${currentRows.filter(row => row.height >= state.brush[0] && row.height <= state.brush[1]).length} sports)`
-      : 'Survolez ou cliquez sur une courbe pour comparer un sport (Maj+clic pour le second sport).'
+      : 'Cliquez sur une courbe pour le sport 1 (Maj+clic : sport 2). Glissez sur l’axe Taille pour filtrer une plage.'
   );
+  // Transparence : sports non affichés faute de mesures suffisantes
+  d3.select('#anat-excluded-note').text(excludedSports
+    ? `${excludedSports} sport${excludedSports > 1 ? 's' : ''} non affiché${excludedSports > 1 ? 's' : ''} (moins de ${MIN_MEASURED} athlètes mesurés).`
+    : '');
+  // L'entrée de légende « plage de taille filtrée » n'apparaît que lorsqu'une plage est sélectionnée
+  d3.select('#anat-legend-brushed').attr('hidden', state.brush ? null : true);
 }
 
 function paddedDomain(values, defaultMin, defaultMax, minPad) {
@@ -439,7 +422,6 @@ function renderDetailPanel() {
     profiles.find(r => r.sport === state.selected[1])
   ].filter(Boolean);
 
-  const ecoSaison = state.season === 'Winter' ? 'hiver' : 'ete';
   const grid = anatSel('#anat-sport-detail-grid', '#sport-detail-grid').html('');
 
   const allHeights = selectedRows.flatMap(r => [r.medalistStats?.height.q1, r.medalistStats?.height.q3, r.nonMedalistStats?.height.q1, r.nonMedalistStats?.height.q3, r.height]);
@@ -456,10 +438,10 @@ function renderDetailPanel() {
     const card = grid.append('article').attr('class', `sport-card ${idx === 0 ? 'card-a' : 'card-b'}`);
     const titleHtml = wikiLinkHtml({
       href: `../geographie/index.html?season=${state.season}&year=${state.year}&sport=${encodeURIComponent(row.sport)}&metric=medals`,
-      text: row.sport,
+      text: row.label,
       eyebrow: 'La carte des groupes sportifs',
-      title: `Géographie de ${row.sport} (${state.year})`,
-      body: `Voir sur la carte mondiale quels pays remportent les médailles et engagent le plus d’athlètes en ${row.sport}.`,
+      title: `Géographie de ${row.label} (${state.year})`,
+      body: `Voir sur la carte mondiale quels pays remportent les médailles et engagent le plus d’athlètes en ${row.label}.`,
       metrics: [
         ['Participants mesurés', `${formatNumber(row.totalAthletes)} athlètes`],
         ['Médaillés mesurés', `${formatNumber(row.totalMedalists)} médaillés`],
@@ -468,85 +450,115 @@ function renderDetailPanel() {
     });
 
     card.append('div').attr('class', 'sport-card-header').html(
-      `<h3>${titleHtml}</h3><span class="sport-card-subtitle">${formatNumber(row.totalMedalists)} médaillés sur ${formatNumber(row.totalAthletes)} athlètes</span>`
+      `<h3>${titleHtml}</h3><span class="sport-card-subtitle">${formatNumber(row.totalMedalists)} médaillés sur ${formatNumber(row.totalAthletes)} athlètes mesurés</span>`
     );
+
+    const mainColor = idx === 0 ? 'var(--accent)' : 'var(--teal)';
+    const textColor = idx === 0 ? 'var(--red)' : 'var(--teal)'; // version lisible pour le texte (contraste >= 4,5:1)
+    // Accord avec le filtre Sexe : « plus grandes » pour les femmes, « plus grands » sinon
+    // (aussi pour un sport uniquement féminin, comme la gymnastique rythmique)
+    const fem = state.sex === 'F' || (!row.bySex?.M?.med && !row.bySex?.M?.non);
+    const metrics = [
+      { key: 'height', label: 'Taille (cm)', unit: 'cm', y: 30, min: 2, more: fem ? 'plus grandes' : 'plus grands', less: fem ? 'plus petites' : 'plus petits', same: 'une taille' },
+      { key: 'weight', label: 'Poids (kg)', unit: 'kg', y: 110, min: 2, more: fem ? 'plus lourdes' : 'plus lourds', less: fem ? 'plus légères' : 'plus légers', same: 'un poids' },
+      { key: 'age', label: 'Âge (ans)', unit: 'ans', y: 190, min: 1, more: fem ? 'plus âgées' : 'plus âgés', less: fem ? 'plus jeunes' : 'plus jeunes', same: 'un âge' }
+    ];
+    // Écart entre la médiane des médaillés et celle des autres participants (en cm, kg ou ans).
+    // Il est jugé net au-delà de `min` (2 cm, 2 kg, 1 an) ; en dessous, la mesure est dite comparable.
+    // Filtre « Tous » : l'écart est calculé dans chaque sexe puis moyenné (pondéré par le nombre de médaillés).
+    // Sinon le mélange hommes / femmes peut effacer un écart réel (ex. gymnastique 2016 : −4 cm chez les femmes
+    // comme chez les hommes, mais ≈ 0 cm en mélangeant, car les médaillés comptent plus d'hommes).
+    const rawShift = m => {
+      if (state.sex === 'ALL') {
+        const parts = ['F', 'M'].map(sx => row.bySex?.[sx]).filter(p => p?.med && p?.non);
+        if (!parts.length) return null;
+        const total = d3.sum(parts, p => p.med.n);
+        return d3.sum(parts, p => (p.med[m.key].med - p.non[m.key].med) * p.med.n) / total;
+      }
+      const med = row.medalistStats?.[m.key], nm = row.nonMedalistStats?.[m.key];
+      return med && nm ? med.med - nm.med : null;
+    };
+    const shift = m => {
+      const v = rawShift(m);
+      if (v === null) return null;
+      return Math.sign(v) * Math.round(Math.abs(v)); // arrondi symétrique : le verdict juge la valeur affichée
+    };
+    const fmtShift = (v, m) => `${v > 0 ? '+' : ''}${formatNumber(v)} ${m.unit}`;
+    const shifts = metrics.map(m => ({ m, v: shift(m) })).filter(d => d.v !== null);
+    const clear = shifts.filter(d => Math.abs(d.v) >= d.m.min);
+    const similar = shifts.filter(d => Math.abs(d.v) < d.m.min);
+
+    // Verdict en une phrase : en quoi les médaillés se distinguent-ils des autres participants ?
+    const who = fem ? 'Les médaillées' : 'Les médaillés';
+    const others = fem ? 'les autres participantes' : 'les autres participants';
+    let verdict;
+    if (!shifts.length) verdict = 'Pas assez de médaillés mesurés pour comparer.';
+    else if (!clear.length) verdict = `${who} ont un gabarit proche de celui des ${others.replace('les ', '')}${state.sex === 'ALL' ? ' (comparaison à sexe égal)' : ''}.`;
+    else {
+      verdict = `${who} sont ${frenchList(clear.map(d => `${d.v > 0 ? d.m.more : d.m.less} (${fmtShift(d.v, d.m)})`))} que ${others}`;
+      verdict += similar.length ? `, pour ${frenchList(similar.map(d => d.m.same))} comparable${similar.length > 1 ? 's' : ''}` : '';
+      verdict += state.sex === 'ALL' ? ' (comparaison à sexe égal).' : '.';
+    }
+    card.append('p').attr('class', `card-verdict ${clear.length ? 'marked' : ''}`).style('border-left-color', mainColor).html(verdict);
 
     card.append('div').attr('class', 'morpho-legend').html(
-      `<span><i class="morpho-dot medalist"></i>Médaillés (25 % à 75 % et médiane)</span>` +
-      `<span><i class="morpho-dot participant"></i>Non-médaillés (25 % à 75 % et médiane)</span>`
+      `<span><i class="morpho-dot" style="background:${mainColor}"></i>Médaillés</span>` +
+      `<span><i class="morpho-dot participant"></i>Autres participants</span>` +
+      `<span class="morpho-legend-note">barre : 50 % central des athlètes · point : médiane</span>`
     );
 
-    const W = 460, H = 152;
-    const trackLeft = 108, trackRight = W - 28;
+    const W = 560, H = 252;
+    const trackLeft = 108, trackRight = W - 120;
     const svg = card.append('svg').attr('class', 'morpho-svg').attr('viewBox', `0 0 ${W} ${H}`);
-    const metrics = [
-      { key: 'height', label: 'Taille (cm)', unit: 'cm', y: 30 },
-      { key: 'weight', label: 'Poids (kg)', unit: 'kg', y: 80 },
-      { key: 'age', label: 'Âge (ans)', unit: 'ans', y: 130 }
-    ];
+    svg.append('text').attr('class', 'morpho-col-title').attr('x', W).attr('y', 8).attr('text-anchor', 'end').text(state.sex === 'ALL' ? 'médiane vs autres, à sexe égal' : 'médiane vs autres');
 
     metrics.forEach(m => {
+      // Écart de médiane à droite de chaque ligne : en grand et en couleur quand il est net
+      const v = shift(m);
+      if (v !== null) {
+        const isClear = Math.abs(v) >= m.min;
+        svg.append('text').attr('class', `morpho-delta ${isClear ? 'marked' : ''}`)
+          .attr('x', W).attr('y', m.y + 13).attr('text-anchor', 'end')
+          .style('fill', isClear ? textColor : null)
+          .text(fmtShift(v, m));
+      }
+      // Échelle commune aux deux cartes (même domaine) : les positions se comparent d'une carte à l'autre
       const x = d3.scaleLinear().domain(domainMap[m.key]).range([trackLeft, trackRight]).clamp(true);
       const g = svg.append('g');
-      g.append('text').attr('x', 0).attr('y', m.y + 4).attr('fill', 'var(--ink)').attr('font-size', 12).attr('font-weight', 600).text(m.label);
-      g.append('line').attr('x1', trackLeft).attr('x2', trackRight).attr('y1', m.y).attr('y2', m.y).attr('stroke', '#dedfd7').attr('stroke-dasharray', '2 3');
+      const yMed = m.y, yOth = m.y + 18, yAxis = m.y + 40;
+      g.append('text').attr('class', 'morpho-row-label').attr('x', 0).attr('y', m.y + 13).text(m.label);
 
-      const nm = row.nonMedalistStats?.[m.key];
-      if (nm) {
-        g.append('line')
-          .attr('x1', x(nm.q1)).attr('x2', x(nm.q3))
-          .attr('y1', m.y + 6).attr('y2', m.y + 6)
-          .attr('stroke', '#87918a').attr('stroke-width', 5).attr('stroke-linecap', 'round').attr('opacity', 0.55);
-        g.append('circle')
-          .attr('cx', x(nm.med)).attr('cy', m.y + 6).attr('r', 4.5)
-          .attr('fill', '#68736d').attr('stroke', 'var(--panel)').attr('stroke-width', 1.5);
-      }
+      // Repères verticaux légers et graduations sous la ligne
+      const ticks = x.ticks(5);
+      g.selectAll('.morpho-grid').data(ticks).join('line').attr('class', 'morpho-grid')
+        .attr('x1', d => x(d)).attr('x2', d => x(d)).attr('y1', yMed - 16).attr('y2', yAxis);
+      g.append('line').attr('class', 'morpho-axis').attr('x1', trackLeft).attr('x2', trackRight).attr('y1', yAxis).attr('y2', yAxis);
+      g.selectAll('.morpho-tick').data(ticks).join('text').attr('class', 'morpho-tick')
+        .attr('x', d => x(d)).attr('y', yAxis + 12).attr('text-anchor', 'middle').text(d => formatNumber(d));
+
+      // Une barre = de 25 % à 75 % des athlètes, bornée par deux petits traits ; le point = la médiane
+      const drawRange = (stats, y, color, thick, cls) => {
+        g.append('line').attr('class', cls).attr('x1', x(stats.q1)).attr('x2', x(stats.q3)).attr('y1', y).attr('y2', y)
+          .attr('stroke', color).attr('stroke-width', thick);
+        [stats.q1, stats.q3].forEach(v => g.append('line').attr('x1', x(v)).attr('x2', x(v))
+          .attr('y1', y - thick / 2 - 3).attr('y2', y + thick / 2 + 3).attr('stroke', color).attr('stroke-width', 1.5));
+        g.append('circle').attr('cx', x(stats.med)).attr('cy', y).attr('r', thick / 2 + 2)
+          .attr('fill', color).attr('stroke', 'var(--panel)').attr('stroke-width', 1.5);
+      };
+      const clampLabel = v => Math.max(trackLeft + 22, Math.min(trackRight - 22, x(v)));
 
       const med = row.medalistStats?.[m.key];
       if (med) {
-        const mainColor = idx === 0 ? 'var(--accent)' : 'var(--teal)';
-        g.append('line')
-          .attr('x1', x(med.q1)).attr('x2', x(med.q3))
-          .attr('y1', m.y - 6).attr('y2', m.y - 6)
-          .attr('stroke', mainColor).attr('stroke-width', 5).attr('stroke-linecap', 'round').attr('opacity', 0.85);
-        g.append('circle')
-          .attr('cx', x(med.med)).attr('cy', m.y - 6).attr('r', 5)
-          .attr('fill', mainColor).attr('stroke', 'var(--panel)').attr('stroke-width', 1.5);
-        const labelX = Math.max(trackLeft + 24, Math.min(trackRight - 24, x(med.med)));
-        g.append('text')
-          .attr('x', labelX).attr('y', m.y - 13)
-          .attr('text-anchor', 'middle').attr('font-size', 10.5).attr('font-weight', 700).attr('fill', 'var(--ink)')
-          .text(`${med.med.toFixed(0)} ${m.unit}`);
+        drawRange(med, yMed, mainColor, 8, 'morpho-range medalist');
+        g.append('text').attr('class', 'morpho-med-label').attr('x', clampLabel(med.med)).attr('y', yMed - 9)
+          .attr('text-anchor', 'middle').style('fill', textColor).text(`${formatNumber(med.med)} ${m.unit}`);
       }
-    });
-
-    card.append('div').attr('class', 'bastions-title').text(`Principales nations en ${row.sport} (${state.year})`);
-    const list = card.append('div').attr('class', 'bastions-list');
-    row.topCountries.slice(0, 4).forEach(c => {
-      const cGeoLink = wikiLinkHtml({
-        href: `../geographie/index.html?season=${state.season}&year=${state.year}&sport=${encodeURIComponent(row.sport)}&noc=${c.noc}`,
-        text: `${c.country} (${c.noc})`,
-        eyebrow: 'La carte des groupes sportifs',
-        title: `${c.country} en ${row.sport} (${state.year})`,
-        body: `Ouvrir la répartition sportive complète de ${c.country} sur la carte mondiale.`,
-        metrics: [
-          ['Médailles dans ce sport', `${c.medals} médailles`],
-          ['Athlètes engagés', `${c.count} athlètes`],
-          ['Gabarit national médian', `${c.medianHeight.toFixed(0)} cm, ${c.medianWeight.toFixed(0)} kg`]
-        ]
-      });
-      const cEcoLink = wikiLinkHtml({
-        href: `../economie/index.html?saison=${ecoSaison}&year=${state.year}&country=${c.noc}`,
-        text: `${c.medals} méd.`,
-        eyebrow: 'Le poids de la richesse',
-        title: `Richesse et efficacité de ${c.country}`,
-        body: `Situer la performance de ${c.country} par rapport à son PIB par habitant.`,
-        metrics: [['Médailles en ' + row.sport, `${c.medals}`], ['Effectif', `${c.count} athlètes`]]
-      });
-      list.append('div').attr('class', 'bastion-row').html(
-        `<span class="bastion-country">${cGeoLink}</span>` +
-        `<span class="bastion-stats">${cEcoLink}, ${c.count} athl., <b>${c.medianHeight.toFixed(0)} cm / ${c.medianWeight.toFixed(0)} kg</b></span>`
-      );
+      const nm = row.nonMedalistStats?.[m.key];
+      if (nm) {
+        drawRange(nm, yOth, '#87918a', 6, 'morpho-range others');
+        g.append('text').attr('class', 'morpho-oth-label').attr('x', clampLabel(nm.med)).attr('y', yOth + 15)
+          .attr('text-anchor', 'middle').text(`${formatNumber(nm.med)} ${m.unit}`);
+      }
     });
   });
 
@@ -554,16 +566,16 @@ function renderDetailPanel() {
 }
 
 function showTooltip(event, row) {
-  const topStr = row.topCountries?.slice(0, 2).map(c => `${c.country} (${c.medals} méd.)`).join(', ') || '—';
+  const topStr = row.topCountries?.slice(0, 2).map(c => `${c.country} (${formatNumber(c.medals)} méd.)`).join(', ') || '-';
   const medH = row.medalistStats ? `${row.medalistStats.height.med.toFixed(0)} cm / ${row.medalistStats.weight.med.toFixed(0)} kg` : 'N/D';
   d3.select('#tooltip').html(
-    `<strong>${row.sport}</strong>` +
-    `<div class="tooltip-row"><span>Effectif affiché</span><b>${formatNumber(row.count)} athlètes</b></div>` +
+    `<strong>${row.label}</strong>` +
+    `<div class="tooltip-row"><span>Athlètes mesurés</span><b>${formatNumber(row.count)} athlètes</b></div>` +
     `<div class="tooltip-row"><span>Âge médian</span><b>${formatValue('age', row.age)}</b></div>` +
     `<div class="tooltip-row"><span>Taille médiane</span><b>${formatValue('height', row.height)}</b></div>` +
     `<div class="tooltip-row"><span>Poids médian</span><b>${formatValue('weight', row.weight)}</b></div>` +
     `<div class="tooltip-row"><span>Médiane des médaillés</span><b>${medH}</b></div>` +
-    `<div class="tooltip-row"><span>Premières nations</span><b>${topStr}</b></div>`
+    `<div class="tooltip-row"><span>Nations les plus médaillées</span><b>${topStr}</b></div>`
   ).classed('visible', true);
   moveTooltip(event);
 }

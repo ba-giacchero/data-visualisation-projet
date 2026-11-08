@@ -1,17 +1,26 @@
-import { HOST_EDITIONS, WINTER_HOST_EDITIONS, bindWikiPreviews, showWikiPreview, moveWikiPreview, hideWikiPreview, wikiLinkHtml, getOlympicRows, getEconomicRows, registerVizController, navigateToViz } from '../shared-links.js';
+import { HOST_EDITIONS, WINTER_HOST_EDITIONS, bindWikiPreviews, wikiLinkHtml, getOlympicRows, getEconomicRows, registerVizController, sportFr, formatNumber, formatDecimal, formatMoney, formatPercent } from '../shared-links.js';
 
-const state = { season: 'Summer', index: 13, rankMetric: 'delegationEffect', detailVisible: true };
+const state = { season: 'Summer', index: 13, rankMetric: 'medalsEffect' };
 
-const formatNumber = d3.format(',');
-const formatMoney = value => value >= 1000 ? `$${d3.format(',.0f')(value)}` : `$${d3.format('.2f')(value)}`;
 const domSel = (scoped, fallback) => document.querySelector(scoped) ? d3.select(scoped) : d3.select(fallback);
 const domNode = (scoped, fallback) => document.querySelector(scoped) || document.querySelector(fallback);
 
 let model;
+// Couleur = effet affiché sur l'axe vertical (délégation ou médailles), en classes : rouge pour une baisse, sarcelle de plus en plus foncée pour une hausse
+const MEDAL_CLASSES = [
+  { label: 'baisse', color: '#b9413e' },
+  { label: '0 à +50 %', color: '#c4dcd5' },
+  { label: '+50 à +100 %', color: '#8fbfb3' },
+  { label: '+100 à +200 %', color: '#4a948a' },
+  { label: 'plus de +200 %', color: '#174d4b' }
+];
+const POINT_RADIUS = 10; // rayon unique des bulles du graphique d'impact
+const IMPACT_TRANSITION = 700; // ms, glissement des bulles quand on change d'effet mesuré
+const lastImpact = { metric: null, season: null }; // dernier état dessiné, pour savoir quand animer
+const medalColor =d3.scaleThreshold().domain([0, 50, 100, 200]).range(MEDAL_CLASSES.map(c => c.color));
 
 function aggregate(rows, economicRows) {
   const groups = new Map();
-  const sProfiles = new Map();
   const yearsBySeason = { Summer: new Set(), Winter: new Set() };
 
   rows.filter(row => (row.Season === 'Summer' || row.Season === 'Winter') && +row.Year >= 1960 && +row.Year <= 2016).forEach(row => {
@@ -41,13 +50,6 @@ function aggregate(rows, economicRows) {
       if (!group.sportMedals.has(row.Sport)) group.sportMedals.set(row.Sport, new Set());
       group.sportMedals.get(row.Sport).add(mKey);
     }
-
-    if (row.Age !== 'NA' && row.Height !== 'NA' && row.Weight !== 'NA') {
-      const sKey = `${row.Season}|${year}|${row.Sport}`;
-      if (!sProfiles.has(sKey)) sProfiles.set(sKey, { ages:[], heights:[], weights:[] });
-      const sp = sProfiles.get(sKey);
-      sp.ages.push(+row.Age); sp.heights.push(+row.Height); sp.weights.push(+row.Weight);
-    }
   });
 
   // PIB par habitant et population (Maddison 2023), par année et code CIO : même source que la vue 2
@@ -58,11 +60,6 @@ function aggregate(rows, economicRows) {
     if (+row.gdppc > 0) gdp.set(key, +row.gdppc);
     if (+row.pop > 0) population.set(key, +row.pop);
   });
-  const sportProfiles = new Map([...sProfiles.entries()].map(([k, v]) => [k, {
-    age: d3.median(v.ages),
-    height: d3.median(v.heights),
-    weight: d3.median(v.weights)
-  }]));
 
   return {
     seasonYears: {
@@ -82,8 +79,7 @@ function aggregate(rows, economicRows) {
       })).sort((a,b) => d3.descending(a.medals, b.medals) || d3.descending(a.count, b.count)).slice(0, 3)
     })),
     gdp,
-    population,
-    sportProfiles
+    population
   };
 }
 
@@ -153,6 +149,8 @@ function enrichHostsForSeason(season) {
       sportDrivers: computeSportDrivers(host, current),
       gdp: model.gdp.get(`${host.year}|${host.noc}`) ?? null,
       population: model.population.get(`${host.year}|${host.noc}`) ?? null,
+      delegationBase,
+      medalsBase,
       delegationEffect: delegationBase && current ? (current.delegation - delegationBase) / delegationBase * 100 : null,
       medalsEffect: medalsBase && current ? (current.medals - medalsBase) / medalsBase * 100 : null
     };
@@ -171,17 +169,17 @@ function applyParams(params = {}) {
   const seasonParam = params.season || params.saison;
   if (seasonParam === 'Winter' || seasonParam === 'hiver') state.season = 'Winter';
   else if (seasonParam === 'Summer' || seasonParam === 'ete') state.season = 'Summer';
-  domSel('#dom-season', '#season').property('value', state.season);
+  d3.selectAll('input[name=dom-season]').property('checked', function () { return this.value === state.season; });
   model.hosts = enrichHostsForSeason(state.season);
 
   const y = +params.year;
   const noc = params.noc || params.country;
   if (y) {
     const idx = model.hosts.findIndex(h => h.year === y);
-    if (idx !== -1) { state.index = idx; state.detailVisible = true; }
+    if (idx !== -1) { state.index = idx; }
   } else if (noc) {
     const idx = model.hosts.findIndex(h => h.noc === noc.toUpperCase());
-    if (idx !== -1) { state.index = idx; state.detailVisible = true; }
+    if (idx !== -1) { state.index = idx; }
   }
   render();
 }
@@ -198,22 +196,17 @@ function initialize(rows, economicRows) {
 function selectedHost() { return model.hosts[state.index] || model.hosts[0]; }
 
 function setupControls() {
-  domSel('#dom-season', '#season').property('value', state.season).on('change', event => {
+  // Boutons à deux positions (Été / Hiver, Délégation / Médailles) à la place des listes déroulantes
+  d3.selectAll('input[name=dom-season]').property('checked', function () { return this.value === state.season; }).on('change', event => {
     state.season = event.target.value;
-    state.detailVisible = true;
     updateSeasonHosts();
     render();
   });
-  domSel('#dom-rank-metric', '#rank-metric').on('change', event => {
+  d3.selectAll('input[name=dom-rank-metric]').property('checked', function () { return this.value === state.rankMetric; }).on('change', event => {
     state.rankMetric = event.target.value;
     const available = availableHosts();
     if (!available.some(host => host.year === selectedHost().year)) state.index = model.hosts.indexOf(available[0]);
     render();
-  });
-  domSel('#dom-close-detail', '#close-detail').on('click', () => {
-    state.detailVisible = false;
-    domSel('#dom-event-detail', '#event-detail').attr('hidden', true);
-    domSel('#dom-host-sports-breakdown', '#host-sports-breakdown').attr('hidden', true);
   });
 }
 
@@ -223,22 +216,10 @@ function availableHosts() {
 
 function render() {
   const host = selectedHost();
-  const selLink = wikiLinkHtml({
-    href: `../geographie/index.html?season=${state.season}&year=${host.year}&noc=${host.noc}`,
-    text: `${host.city} ${host.year}`,
-    eyebrow: 'La carte des groupes sportifs',
-    title: `${host.country} (${host.noc}) en ${host.year}`,
-    body: `Explorer la carte mondiale et la répartition par discipline des ${formatNumber(host.delegation || 0)} athlètes de ${host.country}.`,
-    metrics: [
-      ['Délégation hôte', `${formatNumber(host.delegation || 0)} athlètes`],
-      ['Médailles obtenues', `${formatNumber(host.medals || 0)} médailles`]
-    ]
-  });
-  domSel('#dom-selected-edition', '#selected-edition').html(selLink);
   bindWikiPreviews(document.querySelector('#sec-domicile') || document);
   renderTimeline();
   renderImpact();
-  if (state.detailVisible) renderEventDetail(host);
+  renderEventDetail(host);
 }
 
 function renderTimeline() {
@@ -247,40 +228,128 @@ function renderTimeline() {
     .data(availableHosts(), host => `${host.year}-${host.city}`)
     .join('button')
     .attr('class', host => `timeline-item ${host.year === selectedHost().year ? 'active' : ''}`)
-    .on('click', (_, host) => { state.index = model.hosts.indexOf(host); state.detailVisible = true; render(); })
-    .html(host => `<span class="timeline-dot"></span><span>${host.year}</span><span class="timeline-city">${host.city}</span>`);
+    .attr('aria-pressed', host => host.year === selectedHost().year)
+    .attr('title', host => `${host.city} ${host.year} (${host.country})`)
+    .on('click', (_, host) => { state.index = model.hosts.indexOf(host); render(); })
+    .html(host => {
+      const v = host[state.rankMetric];
+      const dot = v === null ? '#aeb8b1' : medalColor(v);
+      return `<span class="timeline-dot" style="background:${dot}"></span><span class="timeline-year">${host.year}</span><span class="timeline-city">${host.city}</span>`;
+    });
 }
 
 function renderImpact() {
   const container = domNode('#dom-impact', '#impact');
   if (!container) return;
   const width = Math.max(container.clientWidth, 420);
-  const height = 390;
-  const margin = { top: 22, right: 24, bottom: 52, left: 62 };
+  const height = 430;
+  const margin = { top: 18, right: 24, bottom: 52, left: 62 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
   const validRows = availableHosts();
-  const minGdp = d3.min(validRows, host => host.gdp) || 100;
-  const maxGdp = d3.max(validRows, host => host.gdp) || 100000;
-  const maxEffect = d3.max(validRows, host => Math.abs(host[state.rankMetric])) || 1;
-  const minMedalsEffect = d3.min(validRows, host => host.medalsEffect) || -1;
-  const maxMedalsEffect = d3.max(validRows, host => host.medalsEffect) || 1;
-  const x = d3.scaleLog().domain([Math.max(100, minGdp * .8), maxGdp * 1.2]).range([0, innerWidth]);
-  const y = d3.scaleLinear().domain([-maxEffect * 1.15, maxEffect * 1.15]).nice().range([innerHeight, 0]);
-  const radius = d3.scaleSqrt().domain([0, d3.max(validRows, host => host.delegation) || 1]).range([5, 22]);
-  const color = d3.scaleDiverging().domain([minMedalsEffect, 0, maxMedalsEffect]).interpolator(d3.interpolateRgbBasis(['#b9413e', '#f4f0e8', '#174d4b']));
+  // Axe horizontal : année de l'édition (ordre chronologique) ; le PIB reste dans l'infobulle
+  const [minYear, maxYear] = d3.extent(validRows, host => host.year);
+  const x = d3.scaleLinear().domain([(minYear ?? 1960) - 3, (maxYear ?? 2016) + 3]).range([0, innerWidth]);
+  // Axe vertical ajusté aux valeurs (0 toujours visible) : une baisse ne peut pas dépasser −100 %
+  // Valeur isolée (ex. Mexique 1968 : +800 % alors que la suivante est à +340 %) : l'axe s'arrête au-dessus
+  // de la deuxième valeur, et l'édition extrême est posée sur le bord haut avec sa vraie valeur écrite
+  // Axe commun aux deux filtres (délégation et médailles) : l'échelle ne change pas quand on passe de l'un à l'autre
+  const effects = model.hosts.filter(host => host.gdp !== null)
+    .flatMap(host => [host.delegationEffect, host.medalsEffect])
+    .filter(v => v !== null).sort(d3.descending);
+  const cap = effects.length > 2 && effects[0] > 1.8 * effects[1] && effects[1] > 0 ? effects[1] * 1.3 : null;
+  const [minEffect, maxEffect] = d3.extent([0, ...effects.map(v => (cap !== null ? Math.min(v, cap) : v))]);
+  const pad = (maxEffect - minEffect) * .1 || 10;
+  const y = d3.scaleLinear().domain([minEffect < 0 ? minEffect - pad : -pad / 2, maxEffect + pad]).nice().range([innerHeight, 0]);
+  const isOutlier = host => cap !== null && host[state.rankMetric] > cap;
+  const cy = host => (isOutlier(host) ? POINT_RADIUS + 2 : y(host[state.rankMetric]));
+  const color = medalColor;
+  renderColorLegend();
   const impactSel = d3.select(container);
+  // Changement d'effet mesuré (même saison) : on mémorise la position et la couleur de chaque bulle avant de redessiner
+  const animate = lastImpact.metric !== null && lastImpact.metric !== state.rankMetric && lastImpact.season === state.season;
+  const previous = new Map();
+  impactSel.selectAll('.impact-point').each(function (host) {
+    previous.set(host.year, { cy: +this.getAttribute('cy'), fill: this.getAttribute('fill') });
+  });
+  lastImpact.metric = state.rankMetric;
+  lastImpact.season = state.season;
   impactSel.selectAll('svg').remove();
   const svg = impactSel.append('svg').attr('class', 'impact-svg').attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
   const plot = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
   plot.append('g').attr('class', 'impact-grid').call(d3.axisLeft(y).ticks(6).tickSize(-innerWidth).tickFormat(''));
-  plot.append('g').attr('class', 'impact-axis').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(x).ticks(5, value => `$${d3.format('.2s')(value)}`));
-  plot.append('g').attr('class', 'impact-axis').call(d3.axisLeft(y).ticks(6).tickFormat(value => `${value > 0 ? '+' : ''}${d3.format('.0f')(value)}%`));
+  plot.append('g').attr('class', 'impact-axis').attr('transform', `translate(0,${innerHeight})`).call(d3.axisBottom(x).tickValues(validRows.map(host => host.year).filter((_, i, all) => innerWidth / all.length >= 34 || i % 2 === 0)).tickFormat(d3.format('d')));
+  plot.append('g').attr('class', 'impact-axis').call(d3.axisLeft(y).ticks(6).tickFormat(value => `${value > 0 ? '+' : ''}${formatNumber(value)}\u202f%`));
   plot.append('line').attr('class', 'impact-zero').attr('x2', innerWidth).attr('y1', y(0)).attr('y2', y(0));
-  plot.append('text').attr('class', 'impact-label').attr('x', innerWidth / 2).attr('y', innerHeight + 42).attr('text-anchor', 'middle').text('PIB par habitant (dollars PPA 2011, échelle logarithmique)');
+  plot.append('text').attr('class', 'impact-label').attr('x', innerWidth / 2).attr('y', innerHeight + 42).attr('text-anchor', 'middle').text('Édition des Jeux (pays hôte)');
   plot.append('text').attr('class', 'impact-label').attr('transform', 'rotate(-90)').attr('x', -innerHeight / 2).attr('y', -46).attr('text-anchor', 'middle').text(state.rankMetric === 'delegationEffect' ? 'Progression de la délégation' : 'Progression des médailles');
   const tooltip = d3.select('#tooltip');
-  plot.selectAll('.impact-point').data(validRows, host => host.year).join('circle').attr('class', host => `impact-point ${host.year === selectedHost().year ? 'active' : ''}`).attr('cx', host => x(host.gdp)).attr('cy', host => y(host[state.rankMetric])).attr('r', host => radius(host.delegation)).attr('fill', host => host.medalsEffect === null ? '#aeb8b1' : color(host.medalsEffect)).on('click', (_, host) => { state.index = model.hosts.indexOf(host); state.detailVisible = true; render(); }).on('mouseenter', (event, host) => showTooltip(event, host)).on('mousemove', moveTooltip).on('mouseleave', () => tooltip.classed('visible', false));
+  // Bulles de taille identique (les délégations hôtes vont de 400 à 700 athlètes : la taille ne se distinguait pas) ;
+  // la bulle choisie passe au premier plan
+  const fill = host => host[state.rankMetric] === null ? '#aeb8b1' : color(host[state.rankMetric]);
+  const points = plot.selectAll('.impact-point').data(validRows, host => host.year).join('circle').attr('class', host => `impact-point ${host.year === selectedHost().year ? 'active' : ''}`).attr('cx', host => x(host.year)).attr('cy', cy).attr('r', POINT_RADIUS).attr('fill', fill).on('click', (_, host) => { state.index = model.hosts.indexOf(host); render(); }).on('mouseenter', (event, host) => showTooltip(event, host)).on('mousemove', moveTooltip).on('mouseleave', () => tooltip.classed('visible', false));
+  plot.select('.impact-point.active').raise();
+  // Effet visuel : les bulles glissent de leur ancienne position vers la nouvelle et changent de couleur en douceur
+  if (animate) {
+    points.filter(host => previous.has(host.year))
+      .attr('cy', host => previous.get(host.year).cy)
+      .attr('fill', host => previous.get(host.year).fill)
+      .transition().duration(IMPACT_TRANSITION).ease(d3.easeCubicInOut)
+      .attr('cy', cy).attr('fill', fill);
+  }
+  // Coupure de l'axe signalée par deux petits traits obliques en haut de l'axe vertical
+  const breakMark = validRows.some(isOutlier)
+    ? plot.append('path').attr('class', 'impact-break').attr('d', 'M-6,4 L6,-2 M-6,9 L6,3')
+    : null;
+  const labelText = host => (isOutlier(host) ? `${host.noc} ↑ +${formatNumber(host[state.rankMetric])}\u202f%` : host.noc);
+  const labels = drawImpactLabels(plot, validRows, host => x(host.year), cy, () => POINT_RADIUS, innerWidth, innerHeight, labelText);
+  // Pendant le glissement, étiquettes et coupure d'axe sont masquées, puis réapparaissent à leur nouvelle place
+  if (animate) {
+    [labels, breakMark].filter(Boolean).forEach(sel => sel.style('opacity', 0)
+      .transition().delay(IMPACT_TRANSITION - 150).duration(250).style('opacity', 1));
+  }
+}
+
+// Légende des couleurs : une pastille par classe d'effet sur les médailles
+function renderColorLegend() {
+  const legend = d3.select('#sec-domicile .color-legend').html('');
+  // La couleur suit le filtre choisi (délégation ou médailles), comme l'axe vertical
+  const metric = state.rankMetric === 'delegationEffect' ? 'athlètes' : 'médailles';
+  legend.append('span').attr('class', 'legend-title').text(`Couleur : progression des ${metric} vs 3 éditions précédentes`);
+  const items = legend.append('span').attr('class', 'color-swatches');
+  MEDAL_CLASSES.forEach(c => {
+    const item = items.append('span').attr('class', 'swatch-item');
+    item.append('i').style('background', c.color);
+    item.append('span').text(c.label);
+  });
+}
+
+// Étiquettes « GBR 2012 » : placées à droite, à gauche, au-dessus ou au-dessous de la bulle,
+// seulement si elles ne chevauchent ni une bulle ni une autre étiquette. L'édition choisie passe en premier.
+function drawImpactLabels(plot, rows, cx, cy, r, innerWidth, innerHeight, labelText = host => host.noc) {
+  const boxes = rows.map(host => ({ x0: cx(host) - r(host), x1: cx(host) + r(host), y0: cy(host) - r(host), y1: cy(host) + r(host), self: host }));
+  const free = (b, host) => b.x0 >= 0 && b.x1 <= innerWidth && b.y0 >= 0 && b.y1 <= innerHeight &&
+    boxes.every(o => o.self === host || b.x1 < o.x0 || b.x0 > o.x1 || b.y1 < o.y0 || b.y0 > o.y1);
+  const active = selectedHost().year;
+  const order = [...rows].sort((a, b) => (b.year === active) - (a.year === active));
+  const labels = [];
+  order.forEach(host => {
+    const text = labelText(host); // l'année se lit sur l'axe horizontal
+    const w = text.length * 6.2, h = 11, px = cx(host), py = cy(host), pr = r(host);
+    const candidates = [
+      { x: px + pr + 4, y: py + 4, anchor: 'start', b: { x0: px + pr + 2, x1: px + pr + 6 + w, y0: py - h / 2 - 1, y1: py + h / 2 } },
+      { x: px - pr - 4, y: py + 4, anchor: 'end', b: { x0: px - pr - 6 - w, x1: px - pr - 2, y0: py - h / 2 - 1, y1: py + h / 2 } },
+      { x: px, y: py - pr - 4, anchor: 'middle', b: { x0: px - w / 2, x1: px + w / 2, y0: py - pr - 4 - h, y1: py - pr - 2 } },
+      { x: px, y: py + pr + 12, anchor: 'middle', b: { x0: px - w / 2, x1: px + w / 2, y0: py + pr + 2, y1: py + pr + 4 + h } }
+    ];
+    const spot = candidates.find(c => free(c.b, host)) || (host.year === active ? candidates[0] : null);
+    if (!spot) return;
+    boxes.push({ ...spot.b, self: null });
+    labels.push({ ...spot, text, active: host.year === active });
+  });
+  return plot.append('g').attr('class', 'impact-labels').selectAll('text').data(labels).join('text')
+    .attr('class', d => `impact-point-label ${d.active ? 'active' : ''}`)
+    .attr('x', d => d.x).attr('y', d => d.y).attr('text-anchor', d => d.anchor).text(d => d.text);
 }
 
 function eventRows(host) {
@@ -297,9 +366,9 @@ function renderEventDetail(host) {
   const container = domNode('#dom-event-chart', '#event-chart');
   if (!container) return;
   const width = Math.max(container.clientWidth, 420);
-  const height = 430;
-  const margin = { top: 24, right: 20, bottom: 32, left: 60 };
-  const gap = 34;
+  const height = 470;
+  const margin = { top: 34, right: 20, bottom: 28, left: 60 };
+  const gap = 38;
   const panelHeight = (height - margin.top - margin.bottom - gap * 2) / 3;
   const innerWidth = width - margin.left - margin.right;
   const x = d3.scalePoint().domain(rows.map(row => row.offset)).range([0, innerWidth]).padding(.4);
@@ -309,48 +378,21 @@ function renderEventDetail(host) {
       title:'Taille de la délégation',
       color:'delegation',
       y:margin.top,
-      format:value => `${formatNumber(value)} athlètes`,
       tick:value => value,
-      targetViz: 'geographie',
-      targetParams: { season: state.season, year: host.year, noc: host.noc },
-      preview: {
-        eyebrow: 'La carte des groupes sportifs',
-        title: `Délégation de ${host.country} (${host.year})`,
-        body: `Ouvrir la carte mondiale et la répartition par sport des ${formatNumber(host.delegation || 0)} athlètes engagés à domicile.`,
-        metrics: [['Athlètes à T', `${formatNumber(host.delegation || 0)}`], ['Effet domicile', host.delegationEffect !== null ? `${host.delegationEffect >= 0 ? '+' : ''}${host.delegationEffect.toFixed(1)} %` : 'N/D']]
-      }
     },
     {
       key:'medals',
       title:'Médailles obtenues',
       color:'medals',
       y:margin.top + panelHeight + gap,
-      format:value => `${formatNumber(value)} médailles`,
       tick:value => value,
-      targetViz: 'economie',
-      targetParams: { saison: ecoSaison, year: host.year, country: host.noc, mesure: 'medailles' },
-      preview: {
-        eyebrow: 'Le poids de la richesse',
-        title: `Médailles de ${host.country} (${host.year})`,
-        body: `Comparer la récolte de médailles de ${host.country} au reste du monde selon le PIB par habitant.`,
-        metrics: [['Médailles à T', `${formatNumber(host.medals || 0)}`], ['Effet domicile', host.medalsEffect !== null ? `${host.medalsEffect >= 0 ? '+' : ''}${host.medalsEffect.toFixed(1)} %` : 'N/D']]
-      }
     },
     {
       key:'gdp',
       title:'PIB par habitant (dollars PPA 2011)',
       color:'gdp',
       y:margin.top + (panelHeight + gap) * 2,
-      format:formatMoney,
-      tick:value => value >= 1000 ? `$${d3.format('.2s')(value)}` : `$${value}`,
-      targetViz: 'economie',
-      targetParams: { saison: ecoSaison, year: host.year, country: host.noc },
-      preview: {
-        eyebrow: 'Le poids de la richesse',
-        title: `Trajectoire économique de ${host.country}`,
-        body: `Suivre la trajectoire du PIB et de l’efficacité olympique de ${host.country} depuis 1960.`,
-        metrics: [['PIB/hab à T', host.gdp ? formatMoney(host.gdp) : 'N/D'], ['Population', host.population ? formatNumber(host.population) : 'N/D']]
-      }
+      tick:value => formatMoney(value),
     }
   ];
   domSel('#dom-event-detail', '#event-detail').attr('hidden', null);
@@ -360,7 +402,7 @@ function renderEventDetail(host) {
     text: host.country,
     eyebrow: 'Le poids de la richesse',
     title: `${host.country} (${host.noc})`,
-    body: `Explorer la position de ${host.country} dans le nuage économique et sa trajectoire depuis 1960.`,
+    body: `Voir dans quel groupe de richesse se situe ${host.country} en ${host.year} et les médailles moyennes de ce groupe.`,
     metrics: [['PIB / habitant', host.gdp ? formatMoney(host.gdp) : 'N/D'], ['Médailles (' + host.year + ')', `${formatNumber(host.medals || 0)}`]]
   });
   domSel('#dom-event-detail-title', '#event-detail-title').html(`${countryLink} (${host.city} ${host.year})`);
@@ -371,35 +413,22 @@ function renderEventDetail(host) {
     eyebrow: 'La carte des groupes sportifs',
     title: `Composition sportive de ${host.country} (${host.year})`,
     body: `Voir la répartition par discipline de la délégation hôte sur la carte mondiale.`,
-    metrics: [['Délégation totale', `${formatNumber(host.delegation || 0)} athlètes`], ['Effet délégation', host.delegationEffect !== null ? `${host.delegationEffect >= 0 ? '+' : ''}${host.delegationEffect.toFixed(1)} %` : 'N/D']]
+    metrics: [['Délégation totale', `${formatNumber(host.delegation || 0)} athlètes`], ['Effet délégation', host.delegationEffect !== null ? `${formatPercent(host.delegationEffect, true)}` : 'N/D']]
   });
 
-  const sportsLinks = (host.topSports || []).map(item => {
-    const prof = model.sportProfiles.get(`${state.season}|${host.year}|${item.sport}`);
-    return wikiLinkHtml({
-      href: `../anatomie/index.html?season=${state.season}&year=${host.year}&sport=${encodeURIComponent(item.sport)}`,
-      text: `${item.sport} (${item.medals} méd., ${item.count} athl.)`,
-      eyebrow: 'L’anatomie de l’élite',
-      title: `Profil physique en ${item.sport} (${host.year})`,
-      body: `Comparer l’âge, la taille et le poids des médaillés et participants en ${item.sport}.`,
-      metrics: [
-        [`Bilan ${host.noc}`, `${item.medals} méd., ${item.count} athl.`],
-        ['Taille médiane', prof ? `${prof.height.toFixed(0)} cm` : 'N/D'],
-        ['Poids médian', prof ? `${prof.weight.toFixed(0)} kg` : 'N/D']
-      ]
-    });
-  }).join(', ');
+  const sportsLinks = (host.topSports || []).map(item => `${sportFr(item.sport)} (${item.medals} méd., ${item.count} athl.)`).join(', ');
 
   domSel('#dom-event-narrative', '#event-narrative').html(
-    `En <strong>${host.year}</strong>, ${countryLink} engage ${delLink} à domicile` +
-    (sportsLinks ? `, principalement en ${sportsLinks}` : '') + `.`
+    `En ${host.year}, à domicile : ${delLink} engagés` +
+    (sportsLinks ? ` ; disciplines les plus médaillées : ${sportsLinks}` : '') + `.`
   );
 
   const chartSel = d3.select(container);
   chartSel.selectAll('svg').remove();
   const svg = chartSel.append('svg').attr('class','event-svg').attr('width',width).attr('height',height).attr('viewBox',`0 0 ${width} ${height}`);
   svg.append('line').attr('class','host-line').attr('x1',margin.left + x(0)).attr('x2',margin.left + x(0)).attr('y1',margin.top - 10).attr('y2',height - margin.bottom);
-  panels.forEach(panel => {
+  const tickLabel = offset => offset === 0 ? 'T' : offset > 0 ? `T+${offset}` : `T-${-offset}`;
+  panels.forEach((panel, index) => {
     const values = rows.map(row => row[panel.key]).filter(value => value !== null);
     const max = Math.max(1, d3.max(values) || 1);
     const y = d3.scaleLinear().domain([0, max * 1.18]).nice().range([panel.y + panelHeight, panel.y]);
@@ -407,61 +436,40 @@ function renderEventDetail(host) {
     plot.append('g').attr('class','event-grid').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(3).tickSize(-innerWidth).tickFormat(''));
     plot.append('g').attr('class','event-axis').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(3).tickFormat(panel.tick));
     plot.append('text')
-      .attr('class','event-panel-link')
+      .attr('class','event-panel-title')
       .attr('x',margin.left)
-      .attr('y',panel.y - 10)
-      .text(panel.title)
-      .on('mouseenter', event => showWikiPreview(event, panel.preview))
-      .on('mousemove', moveWikiPreview)
-      .on('mouseleave', hideWikiPreview)
-      .on('click', () => {
-        hideWikiPreview();
-        navigateToViz(panel.targetViz, panel.targetParams);
-      });
-    plot.append('g').attr('class','event-axis').attr('transform',`translate(${margin.left},${panel.y + panelHeight})`).call(d3.axisBottom(x).tickFormat(offset => offset === 0 ? 'T' : offset > 0 ? `T+${offset}` : `T${offset}`));
+      .attr('y',panel.y - 12)
+      .text(panel.title);
+    // Axe des éditions partagé : libellés T−3…T+3 seulement sous le dernier panneau
+    const last = index === panels.length - 1;
+    plot.append('g').attr('class', `event-axis ${last ? '' : 'event-axis-silent'}`).attr('transform',`translate(${margin.left},${panel.y + panelHeight})`)
+      .call(d3.axisBottom(x).tickSize(last ? 6 : 0).tickFormat(last ? tickLabel : ''));
     const line = d3.line().defined(row => row[panel.key] !== null).x(row => margin.left + x(row.offset)).y(row => y(row[panel.key]));
     plot.append('path').datum(rows).attr('class',`event-line-${panel.color}`).attr('d',line);
-    plot.selectAll('.event-point').data(rows).join('circle')
-      .attr('class',row => `event-point ${panel.color}`)
+    // Éditions sans donnée (pas encore disputées dans la base, ou absence) : « n.d. » au lieu d'un faux zéro
+    plot.selectAll('.event-missing').data(rows.filter(row => row[panel.key] === null)).join('text')
+      .attr('class','event-missing')
+      .attr('x', row => margin.left + x(row.offset)).attr('y', panel.y + panelHeight - 5).attr('text-anchor','middle')
+      .text('n.d.');
+    plot.selectAll('.event-point').data(rows.filter(row => row[panel.key] !== null)).join('circle')
+      .attr('class',`event-point ${panel.color}`)
       .attr('cx',row => margin.left + x(row.offset))
-      .attr('cy',row => row[panel.key] === null ? y(0) : y(row[panel.key]))
-      .attr('r',4)
-      .attr('opacity',row => row[panel.key] === null ? .35 : 1)
-      .style('cursor', row => row[panel.key] !== null ? 'pointer' : 'default')
-      .on('click', (_, row) => {
-        if (row[panel.key] === null) return;
-        if (panel.key === 'delegation') {
-          navigateToViz('geographie', { season: state.season, year: row.year, noc: host.noc });
-        } else {
-          navigateToViz('economie', { saison: ecoSaison, year: row.year, country: host.noc });
-        }
-      });
+      .attr('cy',row => y(row[panel.key]))
+      .attr('r',4);
   });
 
   const breakdown = domSel('#dom-host-sports-breakdown', '#host-sports-breakdown').attr('hidden', null).html('');
   if (host.sportDrivers && host.sportDrivers.length) {
     breakdown.append('div').attr('class', 'host-sports-header').html(
-      `<h3>Disciplines portant l’effet domicile à ${host.city} ${host.year}</h3>` +
+      `<h3>Disciplines qui progressent le plus à ${host.city} ${host.year}</h3>` +
       `<span>Médailles l’année d’accueil (T) comparées à la moyenne des trois éditions précédentes</span>`
     );
     const grid = breakdown.append('div').attr('class', 'host-sports-grid');
     const maxMed = Math.max(1, d3.max(host.sportDrivers, d => Math.max(d.medT, d.medPrev)) || 1);
 
     host.sportDrivers.forEach(d => {
-      const prof = model.sportProfiles.get(`${state.season}|${host.year}|${d.sport}`);
-      const sLink = wikiLinkHtml({
-        href: `../anatomie/index.html?season=${state.season}&year=${host.year}&sport=${encodeURIComponent(d.sport)}`,
-        text: d.sport,
-        eyebrow: 'L’anatomie de l’élite',
-        title: `${d.sport} (${host.year})`,
-        body: `Analyser le gabarit des médaillés et les nations dominantes en ${d.sport}.`,
-        metrics: [
-          [`Médailles ${host.noc} à T`, `${d.medT} (moyenne avant : ${d.medPrev.toFixed(1)})`],
-          [`Athlètes ${host.noc} à T`, `${d.athT} (moyenne avant : ${d.athPrev.toFixed(1)})`],
-          ['Profil médian mondial', prof ? `${prof.height.toFixed(0)} cm, ${prof.weight.toFixed(0)} kg` : 'N/D']
-        ]
-      });
-      const deltaStr = `${d.medDelta >= 0 ? '+' : ''}${d.medDelta.toFixed(1)} méd.`;
+      const sLink = sportFr(d.sport);
+      const deltaStr = `${d.medDelta > 0 ? '+' : ''}${formatDecimal(d.medDelta)} méd.`;
       const wT = Math.round((d.medT / maxMed) * 100);
       const wPrev = Math.round((d.medPrev / maxMed) * 100);
 
@@ -469,7 +477,7 @@ function renderEventDetail(host) {
         `<div class="host-sport-top"><strong>${sLink}</strong><span class="host-sport-delta ${d.medDelta > 0 ? 'pos' : 'neutral'}">${deltaStr}</span></div>` +
         `<div class="host-sport-bars">` +
           `<div class="host-bar-row"><span>Accueil (T)</span><div class="host-bar-track"><div class="host-bar-fill at-t" style="width:${wT}%"></div></div><b>${d.medT} méd.</b></div>` +
-          `<div class="host-bar-row"><span>Avant (T-3..1)</span><div class="host-bar-track"><div class="host-bar-fill before-t" style="width:${wPrev}%"></div></div><span>${d.medPrev.toFixed(1)} méd.</span></div>` +
+          `<div class="host-bar-row"><span>Moy. T-3 à T-1</span><div class="host-bar-track"><div class="host-bar-fill before-t" style="width:${wPrev}%"></div></div><span>${formatDecimal(d.medPrev)} méd.</span></div>` +
         `</div>`
       );
     });
@@ -480,7 +488,7 @@ function renderEventDetail(host) {
 }
 
 function showTooltip(event, host) {
-  const effect = key => host[key] === null ? 'N/D' : `${host[key] >= 0 ? '+' : ''}${host[key].toFixed(1)} %`;
+  const effect = key => host[key] === null ? 'N/D' : `${formatPercent(host[key], true)}`;
   d3.select('#tooltip').html(
     `<strong>${host.country} (${host.year})</strong>` +
     `<div class="tooltip-row"><span>Ville hôte</span><b>${host.city}</b></div>` +
@@ -488,8 +496,8 @@ function showTooltip(event, host) {
     `<div class="tooltip-row"><span>Effet sur les médailles</span><b>${effect('medalsEffect')}</b></div>` +
     `<div class="tooltip-row"><span>PIB / habitant</span><b>${host.gdp ? formatMoney(host.gdp) : 'N/D'}</b></div>` +
     `<div class="tooltip-row"><span>Population</span><b>${host.population ? formatNumber(host.population) : 'N/D'}</b></div>` +
-    `<div class="tooltip-row"><span>Nombre d’athlètes</span><b>${host.delegation ? formatNumber(host.delegation) : 'N/D'}</b></div>` +
-    `<div class="tooltip-row"><span>Médailles</span><b>${host.medals ? formatNumber(host.medals) : 'N/D'}</b></div>`
+    `<div class="tooltip-row"><span>Athlètes à T (moy. avant)</span><b>${host.delegation ? formatNumber(host.delegation) : 'N/D'}${host.delegationBase ? ` (${formatDecimal(host.delegationBase)})` : ''}</b></div>` +
+    `<div class="tooltip-row"><span>Médailles à T (moy. avant)</span><b>${host.medals !== null ? formatNumber(host.medals) : 'N/D'}${host.medalsBase ? ` (${formatDecimal(host.medalsBase)})` : ''}</b></div>`
   ).classed('visible', true);
   moveTooltip(event);
 }
@@ -511,6 +519,6 @@ Promise.all([getOlympicRows(), getEconomicRows()])
 window.addEventListener('resize', () => {
   if (model) {
     renderImpact();
-    if (state.detailVisible) renderEventDetail(selectedHost());
+    renderEventDetail(selectedHost());
   }
 });

@@ -1,228 +1,228 @@
-noc,iso3,nom_cio
-AFG,AFG,Afghanistan
-AHO,ANT,Netherlands Antilles
-ALB,ALB,Albania
-ALG,DZA,Algeria
-AND,AND,Andorra
-ANG,AGO,Angola
-ANT,ATG,Antigua and Barbuda
-ARG,ARG,Argentina
-ARM,ARM,Armenia
-ARU,ABW,Aruba
-ASA,ASM,American Samoa
-AUS,AUS,Australia
-AUT,AUT,Austria
-AZE,AZE,Azerbaijan
-BAH,BHS,The Bahamas
-BAN,BGD,Bangladesh
-BAR,BRB,Barbados
-BDI,BDI,Burundi
-BEL,BEL,Belgium
-BEN,BEN,Benin
-BER,BMU,Bermuda
-BHU,BTN,Bhutan
-BIH,BIH,Bosnia and Herzegovina
-BIZ,BLZ,Belize
-BLR,BLR,Belarus
-BOL,BOL,Bolivia
-BOT,BWA,Botswana
-BRA,BRA,Brazil
-BRN,BHR,Bahrain
-BRU,BRN,Brunei Darussalam
-BUL,BGR,Bulgaria
-BUR,BFA,Burkina Faso
-CAF,CAF,Central African Republic
-CAM,KHM,Cambodia
-CAN,CAN,Canada
-CAY,CYM,Cayman Islands
-CGO,COG,Congo
-CHA,TCD,Chad
-CHI,CHL,Chile
-CHN,CHN,People's Republic of China
-CIV,CIV,Côte d'Ivoire
-CMR,CMR,Cameroon
-COD,COD,Democratic Republic of the Congo
-COK,COK,Cook Islands
-COL,COL,Colombia
-COM,COM,Comoros
-COR,exclu,Korea Team
-CPV,CPV,Cabo Verde
-CRC,CRI,Costa Rica
-CRO,HRV,Croatia
-CUB,CUB,Cuba
-CYP,CYP,Cyprus
-CZE,CZE,Czechia
-DEN,DNK,Denmark
-DJI,DJI,Djibouti
-DMA,DMA,Dominica
-DOM,DOM,Dominican Republic
-ECU,ECU,Ecuador
-EGY,EGY,Egypt
-EOR,exclu,Refugee Olympic Team
-ERI,ERI,Eritrea
-ESA,SLV,El Salvador
-ESP,ESP,Spain
-EST,EST,Estonia
-ETH,ETH,Ethiopia
-EUN,SUN,Unified Team
-FIJ,FJI,Fiji
-FIN,FIN,Finland
-FRA,FRA,France
-FRG,DEU,West Germany
-FSM,FSM,Federated States of Micronesia
-GAB,GAB,Gabon
-GAM,GMB,The Gambia
-GBR,GBR,Great Britain
-GBS,GNB,Guinea Bissau
-GDR,sans_pib,East Germany
-GEO,GEO,Georgia
-GEQ,GNQ,Equatorial Guinea
-GER,DEU,Germany
-GHA,GHA,Ghana
-GRE,GRC,Greece
-GRN,GRD,Grenada
-GUA,GTM,Guatemala
-GUI,GIN,Guinea
-GUM,GUM,Guam
-GUY,GUY,Guyana
-HAI,HTI,Haiti
-HKG,HKG,"Hong Kong, China"
-HON,HND,Honduras
-HUN,HUN,Hungary
-INA,IDN,Indonesia
-IND,IND,India
-IOA,exclu,Independent Olympic Athletes
-IRI,IRN,Islamic Republic of Iran
-IRL,IRL,Ireland
-IRQ,IRQ,Iraq
-ISL,ISL,Iceland
-ISR,ISR,Israel
-ISV,VIR,United States Virgin Islands
-ITA,ITA,Italy
-IVB,VGB,British Virgin Islands
-JAM,JAM,Jamaica
-JOR,JOR,Jordan
-JPN,JPN,Japan
-KAZ,KAZ,Kazakhstan
-KEN,KEN,Kenya
-KGZ,KGZ,Kyrgyzstan
-KIR,KIR,Kiribati
-KOR,KOR,Republic of Korea
-KOS,XKX,Kosovo
-KSA,SAU,Kingdom of Saudi Arabia
-KUW,KWT,Kuwait
-LAO,LAO,Lao People's Democratic Republic
-LAT,LVA,Latvia
-LBA,LBY,Libya
-LBN,LBN,Lebanon
-LBR,LBR,Liberia
-LCA,LCA,Saint Lucia
-LES,LSO,Lesotho
-LIE,LIE,Liechtenstein
-LTU,LTU,Lithuania
-LUX,LUX,Luxembourg
-MAD,MDG,Madagascar
-MAL,MYS,Malaya
-MAR,MAR,Morocco
-MAS,MYS,Malaysia
-MAW,MWI,Malawi
-MDA,MDA,Republic of Moldova
-MDV,MDV,Maldives
-MEX,MEX,Mexico
-MGL,MNG,Mongolia
-MHL,MHL,Marshall Islands
-MKD,MKD,North Macedonia
-MLI,MLI,Mali
-MLT,MLT,Malta
-MNE,MNE,Montenegro
-MON,MCO,Monaco
-MOZ,MOZ,Mozambique
-MRI,MUS,Mauritius
-MTN,MRT,Mauritania
-MYA,MMR,Myanmar
-NAM,NAM,Namibia
-NCA,NIC,Nicaragua
-NED,NLD,Netherlands
-NEP,NPL,Nepal
-NGR,NGA,Nigeria
-NIG,NER,Niger
-NOR,NOR,Norway
-NRU,NRU,Nauru
-NZL,NZL,New Zealand
-OMA,OMN,Oman
-PAK,PAK,Pakistan
-PAN,PAN,Panama
-PAR,PRY,Paraguay
-PER,PER,Peru
-PHI,PHL,Philippines
-PLE,PSE,Palestine
-PLW,PLW,Palau
-PNG,PNG,Papua New Guinea
-POL,POL,Poland
-POR,PRT,Portugal
-PRK,PRK,Democratic People's Republic of Korea
-PUR,PRI,Puerto Rico
-QAT,QAT,Qatar
-RHO,ZWE,Rhodesia
-ROC,RUS,Russian Olympic Committee
-ROU,ROU,Romania
-RSA,ZAF,South Africa
-RUS,RUS,Russian Federation
-RWA,RWA,Rwanda
-SAM,WSM,Samoa
-SCG,SRB,Serbia and Montenegro
-SEN,SEN,Senegal
-SEY,SYC,Seychelles
-SGP,SGP,Singapore
-SKN,KNA,Saint Kitts and Nevis
-SLE,SLE,Sierra Leone
-SLO,SVN,Slovenia
-SMR,SMR,San Marino
-SOL,SLB,Solomon Islands
-SOM,SOM,Somalia
-SRB,SRB,Serbia
-SRI,LKA,Sri Lanka
-SSD,SSD,South Sudan
-STP,STP,São Tomé and Príncipe
-SUD,SDN,Sudan
-SUI,CHE,Switzerland
-SUR,SUR,Suriname
-SVK,SVK,Slovakia
-SWE,SWE,Sweden
-SWZ,SWZ,Eswatini
-SYR,SYR,Syrian Arab Republic
-TAN,TZA,United Republic of Tanzania
-TCH,CSK,Czechoslovakia
-TGA,TON,Tonga
-THA,THA,Thailand
-TJK,TJK,Tajikistan
-TKM,TKM,Turkmenistan
-TLS,TLS,Timor-Leste
-TOG,TGO,Togo
-TPE,TWN,Chinese Taipei
-TTO,TTO,Trinidad and Tobago
-TUN,TUN,Tunisia
-TUR,TUR,Türkiye
-TUV,TUV,Tuvalu
-UAE,ARE,United Arab Emirates
-UAR,EGY,United Arab Republic
-UGA,UGA,Uganda
-UKR,UKR,Ukraine
-URS,SUN,Soviet Union
-URU,URY,Uruguay
-USA,USA,United States
-UZB,UZB,Uzbekistan
-VAN,VUT,Vanuatu
-VEN,VEN,Venezuela
-VIE,VNM,Vietnam
-VIN,VCT,Saint Vincent and the Grenadines
-VNM,sans_pib,South Vietnam
-WIF,sans_pib,West Indies Federation
-YAR,sans_pib,North Yemen
-YEM,YEM,Yemen
-YMD,sans_pib,South Yemen
-YUG,YUG,Yugoslavia
-ZAM,ZMB,Zambia
-ZIM,ZWE,Zimbabwe
-LIB,LBN,Lebanon
-ROT,exclu,Refugee Olympic Team
+noc,iso3,nom_cio,nom_fr
+AFG,AFG,Afghanistan,Afghanistan
+AHO,ANT,Netherlands Antilles,Antilles néerlandaises
+ALB,ALB,Albania,Albanie
+ALG,DZA,Algeria,Algérie
+AND,AND,Andorra,Andorre
+ANG,AGO,Angola,Angola
+ANT,ATG,Antigua and Barbuda,Antigua-et-Barbuda
+ARG,ARG,Argentina,Argentine
+ARM,ARM,Armenia,Arménie
+ARU,ABW,Aruba,Aruba
+ASA,ASM,American Samoa,Samoa américaines
+AUS,AUS,Australia,Australie
+AUT,AUT,Austria,Autriche
+AZE,AZE,Azerbaijan,Azerbaïdjan
+BAH,BHS,The Bahamas,Bahamas
+BAN,BGD,Bangladesh,Bangladesh
+BAR,BRB,Barbados,Barbade
+BDI,BDI,Burundi,Burundi
+BEL,BEL,Belgium,Belgique
+BEN,BEN,Benin,Bénin
+BER,BMU,Bermuda,Bermudes
+BHU,BTN,Bhutan,Bhoutan
+BIH,BIH,Bosnia and Herzegovina,Bosnie-Herzégovine
+BIZ,BLZ,Belize,Belize
+BLR,BLR,Belarus,Biélorussie
+BOL,BOL,Bolivia,Bolivie
+BOT,BWA,Botswana,Botswana
+BRA,BRA,Brazil,Brésil
+BRN,BHR,Bahrain,Bahreïn
+BRU,BRN,Brunei Darussalam,Brunei
+BUL,BGR,Bulgaria,Bulgarie
+BUR,BFA,Burkina Faso,Burkina Faso
+CAF,CAF,Central African Republic,République centrafricaine
+CAM,KHM,Cambodia,Cambodge
+CAN,CAN,Canada,Canada
+CAY,CYM,Cayman Islands,Îles Caïmans
+CGO,COG,Congo,Congo
+CHA,TCD,Chad,Tchad
+CHI,CHL,Chile,Chili
+CHN,CHN,People's Republic of China,Chine
+CIV,CIV,Côte d'Ivoire,Côte d’Ivoire
+CMR,CMR,Cameroon,Cameroun
+COD,COD,Democratic Republic of the Congo,République démocratique du Congo
+COK,COK,Cook Islands,Îles Cook
+COL,COL,Colombia,Colombie
+COM,COM,Comoros,Comores
+COR,exclu,Korea Team,Équipe de Corée unifiée
+CPV,CPV,Cabo Verde,Cap-Vert
+CRC,CRI,Costa Rica,Costa Rica
+CRO,HRV,Croatia,Croatie
+CUB,CUB,Cuba,Cuba
+CYP,CYP,Cyprus,Chypre
+CZE,CZE,Czechia,Tchéquie
+DEN,DNK,Denmark,Danemark
+DJI,DJI,Djibouti,Djibouti
+DMA,DMA,Dominica,Dominique
+DOM,DOM,Dominican Republic,République dominicaine
+ECU,ECU,Ecuador,Équateur
+EGY,EGY,Egypt,Égypte
+EOR,exclu,Refugee Olympic Team,Équipe olympique des réfugiés
+ERI,ERI,Eritrea,Érythrée
+ESA,SLV,El Salvador,Salvador
+ESP,ESP,Spain,Espagne
+EST,EST,Estonia,Estonie
+ETH,ETH,Ethiopia,Éthiopie
+EUN,SUN,Unified Team,Équipe unifiée
+FIJ,FJI,Fiji,Fidji
+FIN,FIN,Finland,Finlande
+FRA,FRA,France,France
+FRG,DEU,West Germany,Allemagne de l’Ouest
+FSM,FSM,Federated States of Micronesia,Micronésie
+GAB,GAB,Gabon,Gabon
+GAM,GMB,The Gambia,Gambie
+GBR,GBR,Great Britain,Royaume-Uni
+GBS,GNB,Guinea Bissau,Guinée-Bissau
+GDR,sans_pib,East Germany,Allemagne de l’Est
+GEO,GEO,Georgia,Géorgie
+GEQ,GNQ,Equatorial Guinea,Guinée équatoriale
+GER,DEU,Germany,Allemagne
+GHA,GHA,Ghana,Ghana
+GRE,GRC,Greece,Grèce
+GRN,GRD,Grenada,Grenade
+GUA,GTM,Guatemala,Guatemala
+GUI,GIN,Guinea,Guinée
+GUM,GUM,Guam,Guam
+GUY,GUY,Guyana,Guyana
+HAI,HTI,Haiti,Haïti
+HKG,HKG,"Hong Kong, China",Hong Kong
+HON,HND,Honduras,Honduras
+HUN,HUN,Hungary,Hongrie
+INA,IDN,Indonesia,Indonésie
+IND,IND,India,Inde
+IOA,exclu,Independent Olympic Athletes,Athlètes olympiques indépendants
+IRI,IRN,Islamic Republic of Iran,Iran
+IRL,IRL,Ireland,Irlande
+IRQ,IRQ,Iraq,Irak
+ISL,ISL,Iceland,Islande
+ISR,ISR,Israel,Israël
+ISV,VIR,United States Virgin Islands,Îles Vierges des États-Unis
+ITA,ITA,Italy,Italie
+IVB,VGB,British Virgin Islands,Îles Vierges britanniques
+JAM,JAM,Jamaica,Jamaïque
+JOR,JOR,Jordan,Jordanie
+JPN,JPN,Japan,Japon
+KAZ,KAZ,Kazakhstan,Kazakhstan
+KEN,KEN,Kenya,Kenya
+KGZ,KGZ,Kyrgyzstan,Kirghizistan
+KIR,KIR,Kiribati,Kiribati
+KOR,KOR,Republic of Korea,Corée du Sud
+KOS,XKX,Kosovo,Kosovo
+KSA,SAU,Kingdom of Saudi Arabia,Arabie saoudite
+KUW,KWT,Kuwait,Koweït
+LAO,LAO,Lao People's Democratic Republic,Laos
+LAT,LVA,Latvia,Lettonie
+LBA,LBY,Libya,Libye
+LBN,LBN,Lebanon,Liban
+LBR,LBR,Liberia,Liberia
+LCA,LCA,Saint Lucia,Sainte-Lucie
+LES,LSO,Lesotho,Lesotho
+LIE,LIE,Liechtenstein,Liechtenstein
+LTU,LTU,Lithuania,Lituanie
+LUX,LUX,Luxembourg,Luxembourg
+MAD,MDG,Madagascar,Madagascar
+MAL,MYS,Malaya,Malaisie (Malaya)
+MAR,MAR,Morocco,Maroc
+MAS,MYS,Malaysia,Malaisie
+MAW,MWI,Malawi,Malawi
+MDA,MDA,Republic of Moldova,Moldavie
+MDV,MDV,Maldives,Maldives
+MEX,MEX,Mexico,Mexique
+MGL,MNG,Mongolia,Mongolie
+MHL,MHL,Marshall Islands,Îles Marshall
+MKD,MKD,North Macedonia,Macédoine du Nord
+MLI,MLI,Mali,Mali
+MLT,MLT,Malta,Malte
+MNE,MNE,Montenegro,Monténégro
+MON,MCO,Monaco,Monaco
+MOZ,MOZ,Mozambique,Mozambique
+MRI,MUS,Mauritius,Maurice
+MTN,MRT,Mauritania,Mauritanie
+MYA,MMR,Myanmar,Birmanie
+NAM,NAM,Namibia,Namibie
+NCA,NIC,Nicaragua,Nicaragua
+NED,NLD,Netherlands,Pays-Bas
+NEP,NPL,Nepal,Népal
+NGR,NGA,Nigeria,Nigeria
+NIG,NER,Niger,Niger
+NOR,NOR,Norway,Norvège
+NRU,NRU,Nauru,Nauru
+NZL,NZL,New Zealand,Nouvelle-Zélande
+OMA,OMN,Oman,Oman
+PAK,PAK,Pakistan,Pakistan
+PAN,PAN,Panama,Panama
+PAR,PRY,Paraguay,Paraguay
+PER,PER,Peru,Pérou
+PHI,PHL,Philippines,Philippines
+PLE,PSE,Palestine,Palestine
+PLW,PLW,Palau,Palaos
+PNG,PNG,Papua New Guinea,Papouasie-Nouvelle-Guinée
+POL,POL,Poland,Pologne
+POR,PRT,Portugal,Portugal
+PRK,PRK,Democratic People's Republic of Korea,Corée du Nord
+PUR,PRI,Puerto Rico,Porto Rico
+QAT,QAT,Qatar,Qatar
+RHO,ZWE,Rhodesia,Rhodésie
+ROC,RUS,Russian Olympic Committee,Comité olympique russe
+ROU,ROU,Romania,Roumanie
+RSA,ZAF,South Africa,Afrique du Sud
+RUS,RUS,Russian Federation,Russie
+RWA,RWA,Rwanda,Rwanda
+SAM,WSM,Samoa,Samoa
+SCG,SRB,Serbia and Montenegro,Serbie-et-Monténégro
+SEN,SEN,Senegal,Sénégal
+SEY,SYC,Seychelles,Seychelles
+SGP,SGP,Singapore,Singapour
+SKN,KNA,Saint Kitts and Nevis,Saint-Christophe-et-Niévès
+SLE,SLE,Sierra Leone,Sierra Leone
+SLO,SVN,Slovenia,Slovénie
+SMR,SMR,San Marino,Saint-Marin
+SOL,SLB,Solomon Islands,Îles Salomon
+SOM,SOM,Somalia,Somalie
+SRB,SRB,Serbia,Serbie
+SRI,LKA,Sri Lanka,Sri Lanka
+SSD,SSD,South Sudan,Soudan du Sud
+STP,STP,São Tomé and Príncipe,Sao Tomé-et-Principe
+SUD,SDN,Sudan,Soudan
+SUI,CHE,Switzerland,Suisse
+SUR,SUR,Suriname,Suriname
+SVK,SVK,Slovakia,Slovaquie
+SWE,SWE,Sweden,Suède
+SWZ,SWZ,Eswatini,Eswatini
+SYR,SYR,Syrian Arab Republic,Syrie
+TAN,TZA,United Republic of Tanzania,Tanzanie
+TCH,CSK,Czechoslovakia,Tchécoslovaquie
+TGA,TON,Tonga,Tonga
+THA,THA,Thailand,Thaïlande
+TJK,TJK,Tajikistan,Tadjikistan
+TKM,TKM,Turkmenistan,Turkménistan
+TLS,TLS,Timor-Leste,Timor oriental
+TOG,TGO,Togo,Togo
+TPE,TWN,Chinese Taipei,Taïwan (Taipei chinois)
+TTO,TTO,Trinidad and Tobago,Trinité-et-Tobago
+TUN,TUN,Tunisia,Tunisie
+TUR,TUR,Türkiye,Turquie
+TUV,TUV,Tuvalu,Tuvalu
+UAE,ARE,United Arab Emirates,Émirats arabes unis
+UAR,EGY,United Arab Republic,République arabe unie
+UGA,UGA,Uganda,Ouganda
+UKR,UKR,Ukraine,Ukraine
+URS,SUN,Soviet Union,URSS
+URU,URY,Uruguay,Uruguay
+USA,USA,United States,États-Unis
+UZB,UZB,Uzbekistan,Ouzbékistan
+VAN,VUT,Vanuatu,Vanuatu
+VEN,VEN,Venezuela,Venezuela
+VIE,VNM,Vietnam,Viêt Nam
+VIN,VCT,Saint Vincent and the Grenadines,Saint-Vincent-et-les-Grenadines
+VNM,sans_pib,South Vietnam,Viêt Nam du Sud
+WIF,sans_pib,West Indies Federation,Fédération des Indes occidentales
+YAR,sans_pib,North Yemen,Yémen du Nord
+YEM,YEM,Yemen,Yémen
+YMD,sans_pib,South Yemen,Yémen du Sud
+YUG,YUG,Yugoslavia,Yougoslavie
+ZAM,ZMB,Zambia,Zambie
+ZIM,ZWE,Zimbabwe,Zimbabwe
+LIB,LBN,Lebanon,Liban
+ROT,exclu,Refugee Olympic Team,Équipe olympique des réfugiés

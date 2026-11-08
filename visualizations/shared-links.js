@@ -5,18 +5,18 @@ export const ROOT_PREFIX = window.location.pathname.includes('/visualizations/')
 export const HOST_EDITIONS = [
   { season: 'Summer', year: 1960, city: 'Rome', country: 'Italie', noc: 'ITA', iso3: 'ITA' },
   { season: 'Summer', year: 1964, city: 'Tokyo', country: 'Japon', noc: 'JPN', iso3: 'JPN' },
-  { season: 'Summer', year: 1968, city: 'Mexico City', country: 'Mexique', noc: 'MEX', iso3: 'MEX' },
+  { season: 'Summer', year: 1968, city: 'Mexico', country: 'Mexique', noc: 'MEX', iso3: 'MEX' },
   { season: 'Summer', year: 1972, city: 'Munich', country: 'Allemagne de l’Ouest', noc: 'FRG', iso3: 'DEU' },
-  { season: 'Summer', year: 1976, city: 'Montreal', country: 'Canada', noc: 'CAN', iso3: 'CAN' },
-  { season: 'Summer', year: 1980, city: 'Moscow', country: 'URSS', noc: 'URS', iso3: 'SUN' },
+  { season: 'Summer', year: 1976, city: 'Montréal', country: 'Canada', noc: 'CAN', iso3: 'CAN' },
+  { season: 'Summer', year: 1980, city: 'Moscou', country: 'URSS', noc: 'URS', iso3: 'SUN' },
   { season: 'Summer', year: 1984, city: 'Los Angeles', country: 'États-Unis', noc: 'USA', iso3: 'USA' },
-  { season: 'Summer', year: 1988, city: 'Seoul', country: 'Corée du Sud', noc: 'KOR', iso3: 'KOR' },
-  { season: 'Summer', year: 1992, city: 'Barcelona', country: 'Espagne', noc: 'ESP', iso3: 'ESP' },
+  { season: 'Summer', year: 1988, city: 'Séoul', country: 'Corée du Sud', noc: 'KOR', iso3: 'KOR' },
+  { season: 'Summer', year: 1992, city: 'Barcelone', country: 'Espagne', noc: 'ESP', iso3: 'ESP' },
   { season: 'Summer', year: 1996, city: 'Atlanta', country: 'États-Unis', noc: 'USA', iso3: 'USA' },
   { season: 'Summer', year: 2000, city: 'Sydney', country: 'Australie', noc: 'AUS', iso3: 'AUS' },
-  { season: 'Summer', year: 2004, city: 'Athens', country: 'Grèce', noc: 'GRE', iso3: 'GRC' },
-  { season: 'Summer', year: 2008, city: 'Beijing', country: 'Chine', noc: 'CHN', iso3: 'CHN' },
-  { season: 'Summer', year: 2012, city: 'London', country: 'Royaume-Uni', noc: 'GBR', iso3: 'GBR' },
+  { season: 'Summer', year: 2004, city: 'Athènes', country: 'Grèce', noc: 'GRE', iso3: 'GRC' },
+  { season: 'Summer', year: 2008, city: 'Pékin', country: 'Chine', noc: 'CHN', iso3: 'CHN' },
+  { season: 'Summer', year: 2012, city: 'Londres', country: 'Royaume-Uni', noc: 'GBR', iso3: 'GBR' },
   { season: 'Summer', year: 2016, city: 'Rio de Janeiro', country: 'Brésil', noc: 'BRA', iso3: 'BRA' }
 ];
 
@@ -33,9 +33,9 @@ export const WINTER_HOST_EDITIONS = [
   { season: 'Winter', year: 1994, city: 'Lillehammer', country: 'Norvège', noc: 'NOR', iso3: 'NOR' },
   { season: 'Winter', year: 1998, city: 'Nagano', country: 'Japon', noc: 'JPN', iso3: 'JPN' },
   { season: 'Winter', year: 2002, city: 'Salt Lake City', country: 'États-Unis', noc: 'USA', iso3: 'USA' },
-  { season: 'Winter', year: 2006, city: 'Torino', country: 'Italie', noc: 'ITA', iso3: 'ITA' },
+  { season: 'Winter', year: 2006, city: 'Turin', country: 'Italie', noc: 'ITA', iso3: 'ITA' },
   { season: 'Winter', year: 2010, city: 'Vancouver', country: 'Canada', noc: 'CAN', iso3: 'CAN' },
-  { season: 'Winter', year: 2014, city: 'Sochi', country: 'Russie', noc: 'RUS', iso3: 'RUS' }
+  { season: 'Winter', year: 2014, city: 'Sotchi', country: 'Russie', noc: 'RUS', iso3: 'RUS' }
 ];
 
 export function getHostByYear(year, season = 'Summer') {
@@ -55,9 +55,46 @@ let olympicPromise = null;
 let economicPromise = null;
 let worldPromise = null;
 
+// ---------- Formats de nombres en français, communs aux quatre vues ----------
+// « 2 165 », « 26,5 », « 12 345 $ », « +12,5 % » (espace fine insécable avant les unités et dans les milliers)
+export const localeFr = d3.formatLocale({ decimal: ',', thousands: '\u202f', grouping: [3], currency: ['', '\u202f$'], minus: '-' });
+export const formatNumber = localeFr.format(',.0f');
+export const formatDecimal = localeFr.format(',.1f');
+export const formatMoney = value => localeFr.format('$,.0f')(value);
+export const formatPercent = (value, signed = false) => `${signed && value > 0 ? '+' : ''}${localeFr.format(',.1f')(value)} %`;
+
+// ---------- Noms en français (tables de correspondance faites à la main) ----------
+// Les données restent en anglais (clés, filtres, URL) : seule la traduction à l'affichage passe par ces tables.
+// tables_code_pays/sport_fr.csv : sport -> nom_fr ; tables_code_pays/noc_iso3.csv : noc -> nom_fr
+const SPORTS_FR = new Map();
+const COUNTRIES_FR = new Map();
+let namesPromise = null;
+
+export function loadFrenchNames() {
+  if (!namesPromise) {
+    namesPromise = Promise.all([
+      d3.csv(`${ROOT_PREFIX}tables_code_pays/sport_fr.csv`),
+      d3.csv(`${ROOT_PREFIX}tables_code_pays/noc_iso3.csv`)
+    ]).then(([sports, countries]) => {
+      sports.forEach(row => SPORTS_FR.set(row.sport, row.nom_fr));
+      countries.forEach(row => { if (row.nom_fr) COUNTRIES_FR.set(row.noc, row.nom_fr); });
+    }).catch(error => console.warn('Tables de noms français indisponibles, noms anglais conservés.', error));
+  }
+  return namesPromise;
+}
+
+// Nom français d'un sport (nom anglais conservé s'il manque dans la table)
+export const sportFr = sport => SPORTS_FR.get(sport) || sport;
+// Nom français d'un pays à partir de son code CIO (repli sur le nom fourni, puis sur le code)
+export const countryFr = (noc, fallback) => COUNTRIES_FR.get(noc) || fallback || noc;
+
+// Les tables de noms sont chargées avec les données : les vues peuvent appeler sportFr / countryFr sans attendre
 export function getOlympicRows() {
   if (!olympicPromise) {
-    olympicPromise = d3.csv(`${ROOT_PREFIX}120 years of Olympic history/athlete_events.csv`);
+    olympicPromise = Promise.all([
+      d3.csv(`${ROOT_PREFIX}120 years of Olympic history/athlete_events.csv`),
+      loadFrenchNames()
+    ]).then(([rows]) => rows);
   }
   return olympicPromise;
 }
@@ -65,7 +102,10 @@ export function getOlympicRows() {
 // PIB par habitant et population (Maddison 2023) par pays et par édition : même fichier que la vue 2
 export function getEconomicRows() {
   if (!economicPromise) {
-    economicPromise = d3.csv(`${ROOT_PREFIX}visualizations/economie/data/olympiques.csv`);
+    economicPromise = Promise.all([
+      d3.csv(`${ROOT_PREFIX}visualizations/economie/data/olympiques.csv`),
+      loadFrenchNames()
+    ]).then(([rows]) => rows);
   }
   return economicPromise;
 }

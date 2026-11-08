@@ -14,24 +14,24 @@ Puis ouvrir http://localhost:8000. Une connexion Internet est nécessaire : D3, 
 
 | Membre | Visualisation | Technique D3 |
 |---|---|---|
-| [à compléter] | 1. Géographie sportive | carte choroplèthe |
-| Antoine | 2. Richesse et efficacité | nuage de points |
-| [à compléter] | 3. Avantage à domicile | graphique avant/après (event study) et nuage de bulles |
-| [à compléter] | 4. Morphologie des athlètes | coordonnées parallèles |
+| Pierre | 1. Géographie sportive | carte choroplèthe à classes de même effectif, anneau de composition par sport |
+| Antoine | 2. Richesse et médailles | diagramme en barres animé (quintiles de PIB par habitant) |
+| Baptiste | 3. Avantage à domicile | nuage de bulles chronologique et frise avant/après (T-3 à T+3) |
+| Juliette | 4. Morphologie des athlètes | coordonnées parallèles et cartes de comparaison médaillés / autres participants |
 
 ## Les quatre vues
 
-1. **Les nations misent-elles sur quelques sports ?** Carte des délégations par édition et par discipline (athlètes, médailles ou spécialisation) ; clic sur un pays : répartition de sa délégation par sport.
-2. **La richesse fait-elle les médailles ?** Nuage PIB par habitant / mesure olympique (efficacité, médailles, délégation, athlètes par habitant), bulles selon la population, filtres par continent et délégation minimale ; clic : trajectoire des pays comparés.
-3. **Accueillir les Jeux améliore-t-il les résultats ?** Une bulle par édition accueillie ; clic : délégation et médailles du pays hôte de T−3 à T+3.
-4. **Chaque sport a-t-il son gabarit ?** Âge, taille et poids médians par sport ; brossage de la taille, comparaison de deux sports.
+1. Les nations misent-elles sur quelques sports ? Carte des délégations par édition et par discipline (athlètes, médailles ou spécialisation), avec lecture des éditions. Un clic sur un pays affiche la répartition de sa délégation par sport.
+2. La richesse fait-elle les médailles ? Les pays participants sont répartis en cinq groupes de même taille selon leur PIB par habitant ; chaque barre donne le nombre moyen de médailles par pays du groupe, pays sans médaille compris. Lecture animée des éditions ; un pays transmis depuis une autre vue est repéré dans son groupe.
+3. Accueillir les Jeux améliore-t-il les résultats ? Une bulle par édition accueillie, placée selon l’évolution des médailles (ou de la délégation) par rapport à la moyenne des trois éditions précédentes. Un clic affiche la délégation, les médailles et le PIB par habitant du pays hôte de T-3 à T+3, et les disciplines qui progressent le plus.
+4. Chaque sport a-t-il son gabarit ? Âge, taille et poids médians par sport (coordonnées parallèles, sélection d’une plage de taille), puis comparaison de deux sports : écart de médiane entre médaillés et autres participants.
 
-Dans chaque vue, un sélecteur permet de passer des Jeux d’été aux Jeux d’hiver.
+Dans chaque vue, un sélecteur permet de passer des Jeux d’été aux Jeux d’hiver. Les mentions soulignées en pointillés mènent à la vue qui prolonge l’analyse (même édition, même pays ou même sport).
 
 ## Sources des données
 
-- **120 years of Olympic history: athletes and results** (heesoo37, Kaggle) : https://www.kaggle.com/datasets/heesoo37/120-years-of-olympic-history-athletes-and-results
-- **Maddison Project Database 2023** (PIB par habitant en dollars PPA 2011, population ; vues 2 et 3) : Bolt, J. et van Zanden, J. L. (2024), *Journal of Economic Surveys*. https://www.rug.nl/ggdc/historicaldevelopment/maddison/releases/maddison-project-database-2023
+- 120 years of Olympic history: athletes and results (heesoo37, Kaggle) : https://www.kaggle.com/datasets/heesoo37/120-years-of-olympic-history-athletes-and-results
+- Maddison Project Database 2023 (PIB par habitant en dollars PPA 2011, population ; vues 2 et 3) : Bolt, J. et van Zanden, J. L. (2024), Journal of Economic Surveys. https://www.rug.nl/ggdc/historicaldevelopment/maddison/releases/maddison-project-database-2023
 - Fond de carte : Natural Earth 110m (world-atlas).
 
 Tout le projet repose sur ces deux sources. `visualizations/economie/data/olympiques.csv` est précalculé à partir d’elles : une ligne par pays, par saison et par édition (athlètes uniques, une médaille par épreuve collective, PIB par habitant et population Maddison). Il est utilisé par les vues 2 et 3.
@@ -43,7 +43,7 @@ index.html                     page unique : les quatre visualisations
 styles-unified.css             feuille de style
 main.py                        serveur local (port 8000)
 visualizations/
-  shared-links.js              chargement des données et liens entre les vues
+  shared-links.js              chargement des données, formats de nombres, noms français, liens entre les vues
   geographie/app.js            vue 1
   economie/app.js              vue 2
   economie/data/olympiques.csv données par pays et par édition (vues 2 et 3)
@@ -52,7 +52,8 @@ visualizations/
   anatomie/app.js              vue 4
 120 years of Olympic history/  athlete_events.csv (Kaggle, vues 1, 3 et 4)
 donnees_brutes/                mpd2023_web.xlsx (Maddison 2023, entrée de prep.py)
-tables_code_pays/              code_continent.csv (vue 2), noc_iso3.csv (code CIO → ISO3, entrée de prep.py)
+tables_code_pays/              noc_iso3.csv (code CIO, code ISO3 de Maddison, nom français ; entrée de prep.py)
+                               sport_fr.csv (nom français des 51 sports)
 ```
 
 ## Régénérer les données
@@ -63,9 +64,15 @@ python visualizations/economie/data/prep.py
 
 Le script lit `athlete_events.csv`, `mpd2023_web.xlsx` et `noc_iso3.csv`, puis écrit `olympiques.csv` (pandas et openpyxl requis).
 
+## Règles de calcul communes
+
+- Une médaille compte pour un pays, une épreuve et une couleur : les membres d’une équipe championne donnent une seule médaille. Conséquence : deux athlètes d’un même pays ex aequo dans une épreuve individuelle comptent pour une médaille (15 cas depuis 1960).
+- Un athlète est compté une fois par pays et par édition.
+- Les noms de sports et de pays sont traduits à l’affichage par les tables de `tables_code_pays/` ; les données et les filtres restent en anglais.
+
 ## Limites méthodologiques connues
 
-- **Vue 1 (spécialisation)** : aucune taille minimale de délégation n’est imposée ; une très petite délégation peut afficher une part de 100 % dans un sport.
-- **Vue 2** : les pays sans PIB connu (RDA, certains petits États) sont placés dans une bande à part et exclus de la corrélation.
-- **Vue 3 (pays hôte)** : la progression est calculée sur des **nombres bruts** de médailles et d’athlètes. Or le nombre total de médailles distribuées augmente fortement entre 1960 et 2016 : une partie de la hausse observée l’année d’accueil reflète cette croissance et non l’effet domicile. Certaines références reposent sur une seule édition antérieure, et les pourcentages calculés sur de petites bases sont instables.
-- **Vue 4 (anatomie)** : les médianes par sport mélangent des épreuves et des catégories de poids très différentes (athlétisme, haltérophilie, boxe, judo, lutte) ; les athlètes sans âge, taille ou poids renseigné sont exclus.
+- Vue 1 (spécialisation) : aucune taille minimale de délégation n’est imposée pour la part d’une discipline ; une très petite délégation peut afficher 100 % dans un sport.
+- Vue 2 : les pays sans PIB par habitant connu (RDA, certains petits États) sont exclus. Les groupes sont recalculés à chaque édition, et la moyenne du groupe le plus riche est tirée par quelques grandes nations.
+- Vue 3 : la progression est calculée sur des nombres bruts de médailles et d’athlètes, alors que le nombre total de médailles distribuées augmente entre 1960 et 2016. Les pourcentages calculés sur de petites bases sont instables (Mexique 1968 : environ 1 médaille avant, 9 à domicile, soit +800 %).
+- Vue 4 : les médianes par sport mélangent des épreuves et des catégories de poids différentes ; les athlètes sans âge, taille ou poids renseigné sont exclus, ainsi que les sports comptant moins de 20 athlètes mesurés. Avec le filtre « Tous », les coordonnées parallèles mélangent hommes et femmes ; les cartes de comparaison calculent l’écart de médiane à sexe égal.

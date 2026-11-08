@@ -4,15 +4,21 @@ import {
   getOlympicRows,
   getWorldTopo,
   registerVizController,
-  navigateToViz,
   bindWikiPreviews,
-  wikiLinkHtml
+  wikiLinkHtml,
+  sportFr,
+  countryFr,
+  formatNumber,
+  formatDecimal,
+  formatPercent
 } from '../shared-links.js';
 
 const state = { season: 'Summer', year: 2016, sport: 'Tous les sports', metric: 'athletes', selectedNoc: null };
-const colors = ['#dbe8e1', '#b5d2c7', '#89b2a5', '#559187', '#287c78', '#174d4b'];
-const formatNumber = d3.format(',');
-const formatPercent = d3.format('.1f');
+// Rampe sarcelle commune aux vues 1, 2 et 3 (du plus faible au plus fort)
+const colors = ['#e3efec', '#c4dcd5', '#9cc7bc', '#72aea2', '#4a948a', '#287c78'];
+// Catégories du donut : tons sourds cohérents avec le projet ; le gris final est réservé à « Autres »
+// Sans sarcelle (réservée aux valeurs de la carte) ni rouge (réservé à la sélection)
+const sportColors = ['#3b556e', '#c96d3b', '#9a8c3a', '#7a5c8e', '#5f8fa8', '#a3785a', '#6e8b5a', '#c08497', '#b8bdb6'];
 const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const mapAliases = {
@@ -74,7 +80,8 @@ function aggregate(rows) {
         season: row.Season,
         year: +row.Year,
         noc: row.NOC,
-        country: row.Team ? row.Team.replace(/-\d+$/, '') : row.NOC,
+        country: row.Team ? row.Team.replace(/-\d+$/, '') : row.NOC, // nom anglais : clé de rapprochement avec la carte
+        name: countryFr(row.NOC, row.Team ? row.Team.replace(/-\d+$/, '') : row.NOC), // nom affiché en français
         athletes: new Set(),
         medals: new Set(),
         sports: new Map(),
@@ -122,12 +129,16 @@ function aggregate(rows) {
   }));
 }
 
+// Boutons à positions (même composant que les vues 2, 3 et 4)
+const setRadio = (name, value) => d3.selectAll(`input[name=${name}]`).property('checked', function () { return this.value === value; });
+
 function seasonYears(season = state.season) {
   return [...new Set(model.filter(row => row.season === season).map(row => row.year))].sort(d3.ascending);
 }
 
 function applyParams(params = {}) {
   if (!model) return;
+  stopPlay();
   const seasonParam = params.season || params.saison;
   if (seasonParam === 'Winter' || seasonParam === 'hiver') state.season = 'Winter';
   else if (seasonParam === 'Summer' || seasonParam === 'ete') state.season = 'Summer';
@@ -155,19 +166,49 @@ function applyParams(params = {}) {
     if (found) state.selectedNoc = found.noc;
   }
 
-  geoSel('#geo-season', '#season').property('value', state.season);
-  geoSel('#geo-metric', '#metric').property('value', state.metric);
+  setRadio('geo-season', state.season);
+  setRadio('geo-metric', state.metric);
   updateYearMenu();
   updateSportMenu();
   render();
 }
 
+// Édition : curseur sur les années de la saison (comme les vues 2 et 4), l'année choisie s'affiche à côté
 function updateYearMenu() {
   const years = seasonYears(state.season);
   if (!years.includes(state.year)) state.year = years[years.length - 1];
-  const sel = geoSel('#geo-year', '#year');
-  sel.selectAll('option').data(years).join('option').attr('value', d => d).text(d => d);
-  sel.property('value', state.year);
+  d3.select('#geo-year').attr('max', years.length - 1)
+    .property('value', years.indexOf(state.year)).attr('aria-valuetext', state.year);
+  d3.select('#geo-year-value').text(state.year);
+}
+
+// ---------- Lecture : les éditions défilent une par une (même rythme que la vue 2) ----------
+const PLAY_STEP = 1000; // ms par édition
+let playTimer = null;
+
+function stopPlay() {
+  if (playTimer) playTimer.stop();
+  playTimer = null;
+  d3.select('#geo-play').text('▶ Lecture').attr('aria-pressed', false);
+}
+
+function setYear(year) {
+  state.year = year;
+  updateYearMenu();
+  render();
+}
+
+function togglePlay() {
+  if (playTimer) return stopPlay();
+  const years = seasonYears(state.season);
+  if (state.year === years[years.length - 1]) setYear(years[0]); // depuis la fin : on repart du début
+  playTimer = d3.interval(() => {
+    const list = seasonYears(state.season);
+    const i = list.indexOf(state.year);
+    if (i >= list.length - 1) return stopPlay();
+    setYear(list[i + 1]);
+  }, PLAY_STEP);
+  d3.select('#geo-play').text('❚❚ Pause').attr('aria-pressed', true);
 }
 
 function initialize(rows, world) {
@@ -178,7 +219,9 @@ function initialize(rows, world) {
   const urlParams = Object.fromEntries(new URLSearchParams(window.location.search).entries());
   if (Object.keys(urlParams).length) applyParams(urlParams);
 
-  geoSel('#geo-season', '#season').property('value', state.season).on('change', event => {
+  setRadio('geo-season', state.season);
+  d3.selectAll('input[name=geo-season]').on('change', event => {
+    stopPlay();
     state.season = event.target.value;
     state.sport = 'Tous les sports';
     updateYearMenu();
@@ -186,24 +229,34 @@ function initialize(rows, world) {
     render();
   });
   updateYearMenu();
-  geoSel('#geo-year', '#year').on('change', event => { state.year = +event.target.value; render(); });
+  d3.select('#geo-play').on('click', togglePlay);
+  d3.select('#geo-year').on('input', event => {
+    stopPlay();
+    state.year = seasonYears(state.season)[+event.target.value];
+    d3.select('#geo-year-value').text(state.year);
+    render();
+  });
   updateSportMenu();
   geoSel('#geo-sport', '#sport').on('change', event => { state.sport = event.target.value; render(); });
-  geoSel('#geo-metric', '#metric').property('value', state.metric).on('change', event => { state.metric = event.target.value; render(); });
+  setRadio('geo-metric', state.metric);
+  d3.selectAll('input[name=geo-metric]').on('change', event => { state.metric = event.target.value; render(); });
   geoSel('#geo-reset', '#reset').on('click', () => {
+    stopPlay();
     state.season = 'Summer';
     state.year = 2016;
     state.sport = 'Tous les sports';
     state.metric = 'athletes';
     state.selectedNoc = null;
-    geoSel('#geo-season', '#season').property('value', state.season);
-    geoSel('#geo-metric', '#metric').property('value', state.metric);
+    geoSel('#geo-country-search', '#country-search').property('value', '');
+    setRadio('geo-season', state.season);
+    setRadio('geo-metric', state.metric);
     updateYearMenu();
     updateSportMenu();
     render();
   });
   geoSel('#geo-close-detail', '#close-detail').on('click', () => {
     state.selectedNoc = null;
+    geoSel('#geo-country-search', '#country-search').property('value', '');
     renderDetail(null);
     d3.selectAll('.country').classed('active', false);
   });
@@ -215,7 +268,7 @@ function updateSportMenu() {
   const options = ['Tous les sports', ...sports];
   if (!options.includes(state.sport)) state.sport = 'Tous les sports';
   const sel = geoSel('#geo-sport', '#sport');
-  sel.selectAll('option').data(options).join('option').attr('value', d => d).text(d => d);
+  sel.selectAll('option').data(options).join('option').attr('value', d => d).text(d => sportFr(d));
   sel.property('value', state.sport);
 }
 
@@ -246,7 +299,7 @@ function renderMapHeading() {
   const eyebrowText = state.metric === 'medals'
     ? 'Géographie des médailles'
     : state.metric === 'specialization'
-      ? (isAll ? 'Taux de conversion en médailles' : 'Part de la discipline dans la délégation')
+      ? (isAll ? 'Médailles pour 100 athlètes' : 'Part de la discipline dans la délégation')
       : 'Répartition mondiale des effectifs';
   geoSel('#geo-map-eyebrow', '#map-eyebrow').text(eyebrowText);
 
@@ -255,14 +308,14 @@ function renderMapHeading() {
   } else {
     const prof = sportProfiles.get(`${state.season}|${state.year}|${state.sport}`);
     const metrics = prof
-      ? [['Âge médian', `${prof.age.toFixed(1)} ans`], ['Taille médiane', `${prof.height.toFixed(1)} cm`], ['Poids médian', `${prof.weight.toFixed(1)} kg`]]
+      ? [['Âge médian', `${formatDecimal(prof.age)} ans`], ['Taille médiane', `${formatDecimal(prof.height)} cm`], ['Poids médian', `${formatDecimal(prof.weight)} kg`]]
       : [['Édition', `${state.year}`]];
     geoSel('#geo-map-title', '#map-title').html(wikiLinkHtml({
       href: `../anatomie/index.html?season=${state.season}&year=${state.year}&sport=${encodeURIComponent(state.sport)}`,
-      text: state.sport,
+      text: sportFr(state.sport),
       eyebrow: 'L’anatomie de l’élite',
-      title: `Profil physique en ${state.sport}`,
-      body: `Consulter l’âge, la taille et le poids des médaillés et participants en ${state.sport} (${state.year}).`,
+      title: `Profil physique en ${sportFr(state.sport)}`,
+      body: `Consulter l’âge, la taille et le poids des médaillés et participants en ${sportFr(state.sport)} (${state.year}).`,
       metrics
     }));
   }
@@ -276,9 +329,9 @@ function renderMapHeading() {
       body: `Observer l’évolution de la délégation et des médailles de ${host.country} autour des Jeux de ${host.year}.`,
       metrics: [['Ville hôte', host.city], ['Pays hôte', `${host.country} (${host.noc})`]]
     });
-    geoSel('#geo-map-context', '#map-context').html(`Jeux organisés à ${hostLink}. Cliquez sur un pays de la carte pour détailler sa délégation.`);
+    geoSel('#geo-map-context', '#map-context').html(`Jeux organisés à ${hostLink}.`);
   } else {
-    geoSel('#geo-map-context', '#map-context').text('Cliquez sur un pays de la carte pour détailler sa délégation.');
+    geoSel('#geo-map-context', '#map-context').text('');
   }
   bindWikiPreviews(geoNode('#geo-map-heading-box', '.map-heading'));
 }
@@ -292,20 +345,17 @@ function render() {
   const isAll = state.sport === 'Tous les sports';
   if (state.metric === 'medals') {
     geoSel('#geo-athlete-total', '#athlete-total').text(formatNumber(d3.sum(data, row => row.sportMedals)));
-    geoSel('#geo-summary-label', '#summary-label').text(isAll ? 'médailles attribuées' : `médailles en ${state.sport}`);
-    geoSel('#geo-scale-min', '#scale-min').text('Moins de médailles');
-    geoSel('#geo-scale-max', '#scale-max').text('Plus de médailles');
+    geoSel('#geo-summary-label', '#summary-label').text(isAll ? 'médailles attribuées' : `médailles en ${sportFr(state.sport)}`);
+    geoSel('#geo-scale-min', '#scale-min').text(isAll ? 'Médailles' : `Médailles en ${sportFr(state.sport)}`);
   } else if (state.metric === 'specialization') {
     const topRow = [...data].sort((a, b) => d3.descending(a.value, b.value))[0];
-    geoSel('#geo-athlete-total', '#athlete-total').text(topRow && topRow.value > 0 ? `${formatPercent(topRow.value)} %` : '—');
-    geoSel('#geo-summary-label', '#summary-label').text(topRow && topRow.value > 0 ? `maximum (${topRow.noc})` : 'spécialisation max');
-    geoSel('#geo-scale-min', '#scale-min').text('Faible part nationale');
-    geoSel('#geo-scale-max', '#scale-max').text('Forte concentration');
+    geoSel('#geo-athlete-total', '#athlete-total').text(topRow && topRow.value > 0 ? `${formatPercent(topRow.value)}` : '-');
+    geoSel('#geo-summary-label', '#summary-label').text(topRow && topRow.value > 0 ? `maximum (${topRow.name})` : 'spécialisation max');
+    geoSel('#geo-scale-min', '#scale-min').text(isAll ? 'Médailles pour 100 athlètes' : 'Part de la délégation (%)');
   } else {
     geoSel('#geo-athlete-total', '#athlete-total').text(formatNumber(d3.sum(data, row => row.sportAthletes)));
-    geoSel('#geo-summary-label', '#summary-label').text(isAll ? 'athlètes affichés' : `athlètes en ${state.sport}`);
-    geoSel('#geo-scale-min', '#scale-min').text('Moins d’athlètes');
-    geoSel('#geo-scale-max', '#scale-max').text('Plus d’athlètes');
+    geoSel('#geo-summary-label', '#summary-label').text(isAll ? 'athlètes affichés' : `athlètes en ${sportFr(state.sport)}`);
+    geoSel('#geo-scale-min', '#scale-min').text(isAll ? 'Athlètes' : `Athlètes en ${sportFr(state.sport)}`);
   }
 
   drawMap(data, max);
@@ -326,13 +376,30 @@ function drawMap(data, max) {
     const k = countryKey(row.country);
     if (!lookup.has(k) || row.total > lookup.get(k).total) lookup.set(k, row);
   });
-  const color = d3.scaleQuantize().domain([0, max]).range(colors);
+  const search = geoSel('#geo-country-search', '#country-search');
+  geoSel('#geo-country-options', '#country-options')
+    .selectAll('option')
+    .data([...lookup.values()].filter(row => row.total > 0).sort((a, b) => a.name.localeCompare(b.name, 'fr')))
+    .join('option')
+    .attr('value', row => row.name);
+  search.on('change', event => {
+    const typed = normalize(event.target.value);
+    const row = [...lookup.values()].find(item => normalize(item.name) === typed) || lookup.get(countryKey(event.target.value));
+    if (row && row.total > 0) selectCountry(row);
+  });
+  // Classes de même effectif (quantiles) sur les valeurs non nulles : avec des classes de même largeur,
+  // 172 pays sur 207 tombaient dans la première classe en 2016 (555 athlètes pour les États-Unis, médiane à 11).
+  // La valeur 0 a sa propre teinte, la plus claire.
+  const positives = data.map(row => row.value).filter(v => Number.isFinite(v) && v > 0);
+  const color = d3.scaleQuantile().domain(positives.length ? positives : [1]).range(colors.slice(1));
+  const fillFor = value => (value > 0 ? color(value) : colors[0]);
+  renderMapLegend(color, positives.length > 0);
 
   svg.selectAll('.sphere')
     .data([null])
     .join('path')
     .attr('class', 'sphere')
-    .attr('fill', '#dce8e2')
+    .attr('fill', '#eceeea')
     .attr('d', path({ type: 'Sphere' }));
 
   svg.selectAll('.country')
@@ -340,38 +407,62 @@ function drawMap(data, max) {
     .join('path')
     .attr('class', feature => {
       const row = lookup.get(keyFromFeature(feature));
-      const hasValue = row && row.value > 0;
+      const hasValue = row && Number.isFinite(row.value);
       const isActive = row && state.selectedNoc && row.noc === state.selectedNoc;
       return `country ${hasValue ? '' : 'no-data'} ${isActive ? 'active' : ''}`;
     })
     .attr('d', path)
     .attr('fill', feature => {
       const row = lookup.get(keyFromFeature(feature));
-      return row && row.value > 0 ? color(row.value) : '#c8d1ca';
+      return row && Number.isFinite(row.value) ? fillFor(row.value) : '#d8d9d5';
     })
     .on('mouseenter', (event, feature) => showMapTooltip(event, lookup.get(keyFromFeature(feature)), feature))
     .on('mousemove', moveTooltip)
     .on('mouseleave', () => d3.select('#tooltip').classed('visible', false))
     .on('click', (event, feature) => {
       const row = lookup.get(keyFromFeature(feature));
-      if (row && (row.value > 0 || row.total > 0)) {
-        state.selectedNoc = row.noc;
-        d3.select(container).selectAll('.country').classed('active', false);
-        d3.select(event.currentTarget).classed('active', true);
-        renderDetail(row);
-      }
+      if (row && (row.value > 0 || row.total > 0)) selectCountry(row);
     });
 }
 
+// Légende de la carte : une pastille par classe avec ses bornes (0 à part)
+function renderMapLegend(color, hasValues) {
+  const isPercent = state.metric === 'specialization';
+  const fmt = isPercent ? formatDecimal : formatNumber;
+  const [min, max] = d3.extent(color.domain());
+  const cuts = [min, ...color.quantiles(), max];
+  const items = [{ fill: colors[0], label: '0' }];
+  if (hasValues) {
+    color.range().forEach((fill, i) => {
+      const lo = cuts[i], hi = cuts[i + 1];
+      if (hi === undefined || lo === undefined) return;
+      items.push({ fill, label: fmt(lo) === fmt(hi) ? fmt(lo) : `${fmt(lo)}-${fmt(hi)}` });
+    });
+  }
+  items.push({ fill: '#d8d9d5', label: 'absent' });
+  geoSel('#geo-scale-classes', '#scale-classes').html(items
+    .map(item => `<span class="scale-item"><i style="background:${item.fill}"></i>${item.label}</span>`).join(''));
+}
+
+function selectCountry(row) {
+  state.selectedNoc = row.noc;
+  geoSel('#geo-country-search', '#country-search').property('value', row.name);
+  render();
+}
+
 function showMapTooltip(event, row, feature) {
-  if (!row) return;
-  const name = row.country || feature.properties?.name || 'Pays';
+  const name = row?.name || feature.properties?.name || 'Pays';
+  if (!row) {
+    d3.select('#tooltip').html(`<strong>${name}</strong>`).classed('visible', true);
+    moveTooltip(event);
+    return;
+  }
   const isAll = state.sport === 'Tous les sports';
   const share = row.total > 0 ? (row.sportAthletes / row.total * 100) : 0;
   d3.select('#tooltip').html(
     `<strong>${name} (${row.noc})</strong>` +
-    `<div class="tooltip-row"><span>${isAll ? 'Délégation totale' : `Athlètes en ${state.sport}`}</span><b>${formatNumber(row.sportAthletes)}${!isAll ? ` (${formatPercent(share)} %)` : ''}</b></div>` +
-    `<div class="tooltip-row"><span>${isAll ? 'Médailles totales' : `Médailles en ${state.sport}`}</span><b>${formatNumber(row.sportMedals)}</b></div>` +
+    `<div class="tooltip-row"><span>${isAll ? 'Délégation totale' : `Athlètes en ${sportFr(state.sport)}`}</span><b>${formatNumber(row.sportAthletes)}${!isAll ? ` (${formatPercent(share)})` : ''}</b></div>` +
+    `<div class="tooltip-row"><span>${isAll ? 'Médailles totales' : `Médailles en ${sportFr(state.sport)}`}</span><b>${formatNumber(row.sportMedals)}</b></div>` +
     (!isAll ? `<div class="tooltip-row"><span>Total national</span><b>${formatNumber(row.total)} athlètes, ${formatNumber(row.medalsCount)} médailles</b></div>` : '')
   ).classed('visible', true);
   moveTooltip(event);
@@ -401,10 +492,10 @@ function renderDetail(row) {
 
   const countryLink = wikiLinkHtml({
     href: `../economie/index.html?saison=${ecoSaison}&year=${state.year}&country=${encodeURIComponent(row.noc)}`,
-    text: row.country,
+    text: row.name,
     eyebrow: 'Le poids de la richesse',
-    title: `${row.country} (${row.noc}) en ${state.year}`,
-    body: `Voir la position économique et l’efficacité olympique de ${row.country} depuis 1960.`,
+    title: `${row.name} (${row.noc}) en ${state.year}`,
+    body: `Voir dans quel groupe de richesse se situe ${row.name} en ${state.year} et les médailles moyennes de ce groupe.`,
     metrics: [
       ['Délégation (' + state.year + ')', `${formatNumber(row.total)} athlètes`],
       ['Médailles obtenues', `${formatNumber(row.medalsCount)} médailles`],
@@ -413,17 +504,7 @@ function renderDetail(row) {
   });
   geoSel('#geo-detail-title', '#detail-title').html(countryLink);
 
-  const medalsLink = wikiLinkHtml({
-    href: `../economie/index.html?saison=${ecoSaison}&year=${state.year}&country=${encodeURIComponent(row.noc)}&mesure=medailles`,
-    text: `${formatNumber(row.medalsCount)} médailles`,
-    eyebrow: 'Richesse et médailles',
-    title: `Bilan de ${row.country} en ${state.year}`,
-    body: `Comparer la récolte de médailles et le PIB par habitant de ${row.country}.`,
-    metrics: [
-      ['Athlètes engagés', `${formatNumber(row.total)}`],
-      ['Médailles', `${formatNumber(row.medalsCount)}`]
-    ]
-  });
+  const medalsLink = `${formatNumber(row.medalsCount)} médailles`; // (le lien vers la vue 2 est porté par le nom du pays)
   geoSel('#geo-detail-subtitle', '#detail-subtitle').html(`${state.year} : ${formatNumber(row.total)} athlètes, ${medalsLink}`);
 
   const useMedalsInDonut = state.metric === 'medals' && row.medalsCount > 0;
@@ -450,34 +531,28 @@ function renderDetail(row) {
     .data(pie(top))
     .join('path')
     .attr('d', arc)
-    .attr('fill', (item, index) => colors[(index + 2) % colors.length])
+    .attr('fill', (item, index) => sportColors[index % sportColors.length])
     .attr('stroke', 'var(--panel)')
-    .attr('stroke-width', 2)
-    .style('cursor', d => d.data[0] !== 'Autres' ? 'pointer' : 'default')
-    .on('click', (_, d) => {
-      if (d.data[0] !== 'Autres') {
-        navigateToViz('anatomie', { season: state.season, year: state.year, sport: d.data[0], noc: row.noc });
-      }
-    });
+    .attr('stroke-width', 2);
 
   svg.append('text').attr('class', 'donut-total').attr('y', -2).text(formatNumber(useMedalsInDonut ? row.medalsCount : row.total));
   svg.append('text').attr('class', 'donut-label').attr('y', 15).text(useMedalsInDonut ? 'médailles' : 'athlètes');
 
   geoSel('#geo-detail-legend', '#detail-legend').html(top.map((item, index) => {
     const sportName = item[0];
-    const dot = `<i style="background:${colors[(index + 2) % colors.length]}"></i>`;
+    const dot = `<i style="background:${sportColors[index % sportColors.length]}"></i>`;
     if (sportName === 'Autres') {
-      return `<div class="legend-item">${dot}<span>${sportName}</span><span>${formatNumber(item[1])}</span></div>`;
+      return `<div class="legend-item">${dot}<span>${sportFr(sportName)}</span><span>${formatNumber(item[1])}</span></div>`;
     }
     const athCount = row.sportCounts.get(sportName) || 0;
     const medCount = row.sportMedalCounts.get(sportName) || 0;
     const prof = sportProfiles.get(`${state.season}|${state.year}|${sportName}`);
     const link = wikiLinkHtml({
       href: `../anatomie/index.html?season=${state.season}&year=${state.year}&sport=${encodeURIComponent(sportName)}&noc=${row.noc}`,
-      text: sportName,
+      text: sportFr(sportName),
       eyebrow: 'L’anatomie de l’élite',
-      title: `${sportName} (${state.year})`,
-      body: `Voir le profil physique des médaillés et participants en ${sportName}.`,
+      title: `${sportFr(sportName)} (${state.year})`,
+      body: `Voir le profil physique des médaillés et participants en ${sportFr(sportName)}.`,
       metrics: [
         [`Bilan ${row.noc}`, `${athCount} athl., ${medCount} méd.`],
         ['Taille médiane mondiale', prof ? `${prof.height.toFixed(0)} cm` : 'N/D'],
@@ -500,20 +575,7 @@ function renderDetail(row) {
     })).join(', ');
     geoSel('#geo-detail-context', '#detail-context').html(`Pays hôte (${state.season === 'Winter' ? 'Hiver' : 'Été'}) : ${links}.`);
   } else {
-    const hostOfYear = getHostByYear(state.year, state.season);
-    if (hostOfYear) {
-      const hLink = wikiLinkHtml({
-        href: `../domicile/index.html?season=${state.season}&year=${hostOfYear.year}`,
-        text: `${hostOfYear.city} ${hostOfYear.year}`,
-        eyebrow: 'Avantage à domicile',
-        title: `${hostOfYear.country} à ${hostOfYear.city} ${hostOfYear.year}`,
-        body: `Comparer avec la trajectoire du pays hôte de cette édition (${hostOfYear.country}).`,
-        metrics: [['Pays hôte', hostOfYear.country], ['Année', `${hostOfYear.year}`]]
-      });
-      geoSel('#geo-detail-context', '#detail-context').html(`Édition organisée à ${hLink}.`);
-    } else {
-      geoSel('#geo-detail-context', '#detail-context').html('');
-    }
+    geoSel('#geo-detail-context', '#detail-context').html('');
   }
 
   bindWikiPreviews(geoNode('#geo-detail-panel', '#detail-panel'));
