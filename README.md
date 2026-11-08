@@ -15,14 +15,14 @@ Puis ouvrir http://localhost:8000. Une connexion Internet est nécessaire : D3, 
 | Membre | Visualisation | Technique D3 |
 |---|---|---|
 | Pierre | 1. Géographie sportive | carte choroplèthe à classes de même effectif, anneau de composition par sport |
-| Antoine | 2. Richesse et médailles | diagramme en barres animé (quintiles de PIB par habitant) |
+| Antoine | 2. Richesse et médailles | diagramme en barres animé (quintiles de PIB par habitant) et nuage de points lié, côte à côte, sur une mesure commune (médailles ou efficacité) |
 | Baptiste | 3. Avantage à domicile | nuage de bulles chronologique et frise avant/après (T-3 à T+3) |
 | Juliette | 4. Morphologie des athlètes | coordonnées parallèles et cartes de comparaison médaillés / autres participants |
 
 ## Les quatre vues
 
 1. Les nations misent-elles sur quelques sports ? Carte des délégations par édition et par discipline (athlètes, médailles ou spécialisation), avec lecture des éditions. Un clic sur un pays affiche la répartition de sa délégation par sport.
-2. La richesse fait-elle les médailles ? Les pays participants sont répartis en cinq groupes de même taille selon leur PIB par habitant ; chaque barre donne le nombre moyen de médailles par pays du groupe, pays sans médaille compris. Lecture animée des éditions ; un pays transmis depuis une autre vue est repéré dans son groupe.
+2. La richesse fait-elle les médailles ? Les pays participants sont répartis en cinq groupes de même taille selon leur PIB par habitant ; les pays sans PIB connu forment un groupe à part. Deux graphiques côte à côte portent sur la même mesure, au choix : médailles par pays ou efficacité (médailles par athlète rapportées à celles de l’édition, pays d’au moins 5 athlètes). Les barres donnent la moyenne de chaque groupe ; le nuage de points place chaque pays selon son PIB par habitant, les pays sans médaille étant regroupés dans une bande. Le survol d’une barre montre ses pays dans le nuage, le survol d’un cercle situe le pays sur la barre de son groupe ; un clic isole un groupe ou repère un pays. Lecture animée des éditions.
 3. Accueillir les Jeux améliore-t-il les résultats ? Une bulle par édition accueillie, placée selon l’évolution des médailles (ou de la délégation) par rapport à la moyenne des trois éditions précédentes. Un clic affiche la délégation, les médailles et le PIB par habitant du pays hôte de T-3 à T+3, et les disciplines qui progressent le plus.
 4. Chaque sport a-t-il son gabarit ? Âge, taille et poids médians par sport (coordonnées parallèles, sélection d’une plage de taille), puis comparaison de deux sports : écart de médiane entre médaillés et autres participants.
 

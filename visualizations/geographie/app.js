@@ -516,7 +516,7 @@ function renderDetail(row) {
     text: row.name,
     eyebrow: 'Le poids de la richesse',
     title: `${row.name} (${row.noc}) en ${state.year}`,
-    body: `Voir dans quel groupe de richesse se situe ${row.name} en ${state.year} et les médailles moyennes de ce groupe.`,
+    body: `Voir le groupe de richesse de ${row.name} en ${state.year} et le comparer aux autres pays.`,
     metrics: [
       ['Délégation (' + state.year + ')', `${formatNumber(row.total)} athlètes`],
       ['Médailles obtenues', `${formatNumber(row.medalsCount)} médailles`],

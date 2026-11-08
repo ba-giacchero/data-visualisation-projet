@@ -402,7 +402,7 @@ function renderEventDetail(host) {
     text: host.country,
     eyebrow: 'Le poids de la richesse',
     title: `${host.country} (${host.noc})`,
-    body: `Voir dans quel groupe de richesse se situe ${host.country} en ${host.year} et les médailles moyennes de ce groupe.`,
+    body: `Voir le groupe de richesse de ${host.country} en ${host.year} et le comparer aux autres pays.`,
     metrics: [['PIB / habitant', host.gdp ? formatMoney(host.gdp) : 'N/D'], ['Médailles (' + host.year + ')', `${formatNumber(host.medals || 0)}`]]
   });
   domSel('#dom-event-detail-title', '#event-detail-title').html(`${countryLink} (${host.city} ${host.year})`);

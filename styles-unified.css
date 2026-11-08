@@ -731,7 +731,7 @@ select {
   border-bottom: 1px solid var(--line);
 }
 
-#sec-economie .carte:last-child {
+#sec-economie .carte-annee {
   padding-bottom: 0;
   border-bottom: 0;
 }
@@ -831,7 +831,7 @@ select {
   background: var(--panel);
 }
 
-#sec-economie #nuage {
+#sec-economie .eco-graphique {
   display: block;
   width: 100%;
   height: auto;
@@ -1556,18 +1556,18 @@ select {
   outline-offset: 2px;
 }
 
-#sec-economie #nuage .tick line,
-#sec-economie #nuage .domain {
+#sec-economie .eco-graphique .tick line,
+#sec-economie .eco-graphique .domain {
   stroke: #aeb8b1;
   stroke-width: .8px;
 }
 
-#sec-economie #nuage .tick text {
+#sec-economie .eco-graphique .tick text {
   fill: #4e5a54;
   font-size: 12px;
 }
 
-#sec-economie #nuage-aide {
+#sec-economie .eco-aide {
   margin: 0 0 8px;
   padding: 8px 10px;
   border-left: 3px solid var(--teal);
@@ -1577,58 +1577,59 @@ select {
   line-height: 1.5;
 }
 
-#sec-economie #nuage .boxplot-grid line {
+#sec-economie .eco-graphique .boxplot-grid line {
   stroke: #e5e3db;
 }
 
-#sec-economie #nuage .boxplot-grid .tick text {
+#sec-economie .eco-graphique .boxplot-grid .tick text {
   display: none;
 }
 
-#sec-economie #nuage .boxplot-y-axis .domain,
-#sec-economie #nuage .boxplot-x-axis .domain {
+#sec-economie .eco-graphique .boxplot-y-axis .domain,
+#sec-economie .eco-graphique .boxplot-x-axis .domain {
   stroke: #7d8982;
 }
 
-#sec-economie #nuage .boxplot-axis-title {
+#sec-economie .eco-graphique .boxplot-axis-title {
   fill: #46534f;
   font: 500 12px 'DM Sans', sans-serif;
 }
 
-#sec-economie #nuage .boxplot-empty {
+#sec-economie .eco-graphique .boxplot-empty {
   fill: #59655f;
   font: 14px 'DM Sans', sans-serif;
 }
 
-/* Prototype axe 2 : barres par quintile */
-#sec-economie #nuage .barre-quintile {
-  cursor: help;
+/* Vue 02 : barres par quintile (un clic isole le groupe dans le nuage) */
+#sec-economie .eco-graphique .barre-quintile {
+  cursor: pointer;
+  transition: opacity .2s;
 }
 
-#sec-economie #nuage .barre-quintile:hover,
-#sec-economie #nuage .barre-quintile:focus {
+#sec-economie .eco-graphique .barre-quintile:hover,
+#sec-economie .eco-graphique .barre-quintile:focus {
   stroke: var(--ink);
   stroke-width: 1.5px;
   outline: none;
 }
 
-#sec-economie #nuage .barre-valeur {
+#sec-economie .eco-graphique .barre-valeur {
   fill: var(--ink);
   font: 600 14px 'DM Sans', sans-serif;
 }
 
 /* Sous les barres : quintile (principal) > nombre de pays > intervalle de PIB (secondaire) */
-#sec-economie #nuage .boxplot-x-axis .tick text {
+#sec-economie .eco-graphique .boxplot-x-axis .tick text {
   fill: var(--ink);
   font: 600 12.5px 'DM Sans', sans-serif;
 }
 
-#sec-economie #nuage .barre-pays {
+#sec-economie .eco-graphique .barre-pays {
   fill: #46534f;
   font: 500 11.5px 'DM Sans', sans-serif;
 }
 
-#sec-economie #nuage .barre-pib {
+#sec-economie .eco-graphique .barre-pib {
   fill: var(--muted);
   font: 11px 'DM Sans', sans-serif;
 }
@@ -1664,22 +1665,21 @@ select {
   padding: 12px 18px;
 }
 
-#sec-economie .carte,
-#sec-economie .carte:last-child {
+#sec-economie .carte {
   padding: 0;
   border-bottom: 0;
 }
 
-#sec-economie .carte:first-child {
+#sec-economie .carte-saison {
   padding-right: 28px;
   border-right: 1px solid var(--line);
 }
 
-#sec-economie .carte:last-child {
-  flex: 1 1 420px;
+#sec-economie .carte-annee {
+  flex: 1 1 300px;
 }
 
-#sec-economie .carte:last-child .control-group {
+#sec-economie .carte-annee .control-group {
   grid-template-columns: auto minmax(160px, 1fr) auto;
   align-items: center;
   gap: 18px;
@@ -1691,14 +1691,14 @@ select {
 }
 
 @media (max-width: 700px) {
-  #sec-economie .carte:first-child {
+  #sec-economie .carte-saison {
     padding-right: 0;
     border-right: 0;
   }
-  #sec-economie .carte:last-child .control-group {
+  #sec-economie .carte-annee .control-group {
     grid-template-columns: 1fr auto;
   }
-  #sec-economie .carte:last-child input[type=range] {
+  #sec-economie .carte-annee input[type=range] {
     grid-column: 1 / -1;
     grid-row: 2;
   }
@@ -1954,7 +1954,7 @@ select {
 }
 
 /* Vue 02 : l'aide du graphique prend le style commun des notes (petit texte gris, sans encadré) */
-#sec-economie #nuage-aide {
+#sec-economie .eco-aide {
   margin: 0 0 6px;
   padding: 0;
   border: 0;
@@ -2039,19 +2039,14 @@ select {
 }
 
 /* Vue 02 : graduations de l'axe vertical à 11 px (d3 applique 10 px par défaut) */
-#sec-economie #nuage .boxplot-y-axis .tick text {
+#sec-economie .eco-graphique .boxplot-y-axis .tick text {
   font: 11px 'DM Sans', sans-serif;
 }
 
 /* Vue 02 : pays reçu par lien depuis une autre vue (barre de son groupe cerclée, nom au-dessus) */
-#sec-economie #nuage .barre-quintile.focus {
+#sec-economie .eco-graphique .barre-quintile.focus {
   stroke: var(--ink);
   stroke-width: 2px;
-}
-
-#sec-economie #nuage .barre-focus {
-  fill: var(--ink);
-  font: 600 12px 'DM Sans', sans-serif;
 }
 
 #sec-economie .eco-chart-heading {
@@ -2070,4 +2065,245 @@ select {
   color: var(--ink);
   cursor: pointer;
   font: 600 12px 'DM Sans', sans-serif;
+}
+
+/* Vue 02 : libellé « Saison » sur la même ligne que ses boutons, comme dans les vues 1, 3 et 4 */
+#sec-economie .carte-saison .control-group {
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Boutons Été / Hiver en casse normale (la règle générale des libellés met en capitales), comme dans les autres vues */
+#sec-economie .segmente label {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+/* Vue 02 : mesure et recherche d'un pays dans la barre de filtres, séparées comme le choix de la saison */
+#sec-economie .carte-mesure,
+#sec-economie .carte-recherche {
+  padding-left: 28px;
+  border-left: 1px solid var(--line);
+}
+
+#sec-economie .carte-annee .ligne-valeur {
+  flex-wrap: nowrap;
+}
+
+#sec-economie .carte-mesure .control-group {
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 10px;
+}
+
+#sec-economie .carte-recherche .control-group {
+  grid-template-columns: auto minmax(150px, 200px) auto auto;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+#sec-economie .carte-recherche .eco-focus[hidden] {
+  display: none;
+}
+
+/* Vue 02 : barres et nuage côte à côte, consigne commune au-dessus (comme celle de la vue 4) */
+#sec-economie .eco-consigne {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: right;
+}
+
+#sec-economie .eco-duo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+#sec-economie .eco-colonne {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+/* Les deux aides gardent la même hauteur : les graphiques restent alignés */
+#sec-economie .eco-colonne .eco-aide {
+  min-height: 3em;
+}
+
+#sec-economie .eco-graphique .barre-quintile.estompe {
+  opacity: .35;
+}
+
+/* La barre du groupe du pays repéré reste visible, même hors du groupe isolé */
+#sec-economie .eco-graphique .barre-quintile.estompe.focus {
+  opacity: 1;
+}
+
+#sec-economie .eco-graphique .zone {
+  cursor: pointer;
+}
+
+/* Fond d'une zone : couleur de son groupe (celle de sa barre), visible quand le groupe est mis en évidence */
+#sec-economie .eco-graphique .zone-fond {
+  opacity: 0;
+  transition: opacity .2s;
+}
+
+#sec-economie .eco-graphique .zone.active .zone-fond {
+  opacity: .22;
+}
+
+#sec-economie .eco-graphique .zone-titre {
+  fill: var(--muted);
+  font: 600 11px 'DM Sans', sans-serif;
+}
+
+#sec-economie .eco-graphique .zone.active .zone-titre {
+  fill: var(--ink);
+}
+
+/* Vue 02 : groupe « PIB inconnu », à gauche des quintiles dans les deux graphiques */
+#sec-economie .eco-graphique .separation-inconnu {
+  stroke: #9aa39d;
+  stroke-dasharray: 2 3;
+}
+
+#sec-economie .eco-graphique .zone-inconnu .zone-fond {
+  opacity: .3;
+}
+
+#sec-economie .eco-graphique .zone-inconnu.active .zone-fond {
+  opacity: .55;
+}
+
+/* Repère du pays sur les barres : trait à son nombre de médailles, nom et valeur au-dessus */
+#sec-economie .eco-graphique .repere-pays {
+  pointer-events: none;
+}
+
+#sec-economie .eco-graphique .repere-pays line {
+  stroke: var(--accent);
+  stroke-width: 2.5px;
+}
+
+#sec-economie .eco-graphique .repere-pays text {
+  fill: var(--ink);
+  font: 600 12px 'DM Sans', sans-serif;
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+}
+
+#sec-economie .eco-graphique .point.inconnu circle {
+  stroke: #6f7771;
+}
+
+/* Vue 02 : bande des pays sans médaille, sous l'axe de l'efficacité */
+#sec-economie .eco-graphique .bande-zero {
+  fill: #efede6;
+}
+
+#sec-economie .eco-graphique .etiquette-bande {
+  fill: var(--muted);
+  font: 600 11px 'DM Sans', sans-serif;
+}
+
+#sec-economie .eco-graphique .limite-quintile {
+  stroke: #c9cbc1;
+  stroke-dasharray: 3 4;
+}
+
+#sec-economie .eco-graphique .reference line {
+  stroke: #46534f;
+  stroke-width: 1.2px;
+  stroke-dasharray: 5 4;
+}
+
+#sec-economie .eco-graphique .reference {
+  pointer-events: none;
+}
+
+#sec-economie .eco-graphique .etiquette-moyenne {
+  fill: #46534f;
+  font: 500 11px 'DM Sans', sans-serif;
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+}
+
+#sec-economie .eco-graphique .point {
+  cursor: pointer;
+  transition: opacity .2s;
+}
+
+#sec-economie .eco-graphique .point circle {
+  fill-opacity: .9;
+  stroke: #1f5f5c;
+  stroke-width: .8px;
+}
+
+#sec-economie .eco-graphique .point .triangle {
+  fill: #1f5f5c;
+}
+
+#sec-economie .eco-graphique .point.estompe {
+  opacity: .12;
+}
+
+/* Le pays survolé ou repéré reste visible, même hors du groupe isolé */
+#sec-economie .eco-graphique .point.survol,
+#sec-economie .eco-graphique .point.focus {
+  opacity: 1;
+}
+
+#sec-economie .eco-graphique .point.survol circle,
+#sec-economie .eco-graphique .point.focus circle {
+  stroke: var(--ink);
+  stroke-width: 2px;
+}
+
+#sec-economie .eco-graphique .point-focus {
+  fill: var(--ink);
+  font: 600 12px 'DM Sans', sans-serif;
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+  pointer-events: none;
+}
+
+/* Vue 02 : infobulle en lignes libellé / valeur, comme celles des autres vues */
+#infobulle {
+  min-width: 250px;
+}
+
+#infobulle strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+@media (max-width: 1020px) {
+  #sec-economie .eco-duo {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  #sec-economie .carte-mesure,
+  #sec-economie .carte-recherche {
+    padding-left: 0;
+    border-left: 0;
+  }
+  #sec-economie .carte-recherche .control-group {
+    grid-template-columns: 1fr;
+  }
+  #sec-economie .eco-consigne {
+    text-align: left;
+  }
 }

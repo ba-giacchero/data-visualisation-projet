@@ -145,14 +145,14 @@
         <div>
           <div class="eyebrow">2. Richesse et médailles</div>
           <h2 class="viz-title">La richesse fait-elle les médailles ?</h2>
-          <p class="intro">Les pays participants sont répartis en cinq groupes de même taille selon leur PIB par habitant, puis comparés sur le nombre moyen de médailles remportées.</p>
+          <p class="intro">Les pays participants sont répartis en cinq groupes de même taille selon leur PIB par habitant. Les barres comparent les groupes ; le nuage de points détaille chaque pays, sur la même mesure.</p>
         </div>
       </div>
 
       <div class="eco-workspace">
-        <!-- Barre de filtres au-dessus du graphique -->
+        <!-- Barre de filtres au-dessus des deux graphiques -->
         <aside id="controles" class="controles" aria-label="Filtres de la visualisation">
-          <div class="carte">
+          <div class="carte carte-saison">
             <div class="control-group">
               <span class="etiquette">Saison</span>
               <div class="segmente" role="radiogroup" aria-label="Saison">
@@ -161,7 +161,7 @@
               </div>
             </div>
           </div>
-          <div class="carte">
+          <div class="carte carte-annee">
             <div class="control-group">
               <div class="ligne-valeur">
                 <label class="etiquette" for="annee">Édition</label>
@@ -171,20 +171,56 @@
               <button type="button" id="lecture" class="bouton-lecture" aria-pressed="false">▶ Lecture</button>
             </div>
           </div>
+          <div class="carte carte-mesure">
+            <div class="control-group">
+              <span class="etiquette">Mesure</span>
+              <div class="segmente" role="radiogroup" aria-label="Mesure">
+                <label><input type="radio" name="mesure" value="medailles" checked><span>Médailles</span></label>
+                <label title="Médailles par athlète du pays, rapportées à celles de l’édition (1 = moyenne)"><input type="radio" name="mesure" value="efficacite"><span>Efficacité</span></label>
+              </div>
+            </div>
+          </div>
+          <div class="carte carte-recherche">
+            <div class="control-group">
+              <label class="etiquette" for="eco-recherche">Pays</label>
+              <input id="eco-recherche" type="search" list="eco-pays-options" autocomplete="off" placeholder="Saisir un nom de pays">
+              <datalist id="eco-pays-options"></datalist>
+              <button type="button" id="eco-focus" class="eco-focus" hidden title="Retirer le repère du pays"></button>
+              <button type="button" id="eco-groupe" class="eco-focus" hidden title="Afficher de nouveau tous les groupes"></button>
+            </div>
+          </div>
         </aside>
         <div class="eco-stage">
-          <div class="eco-chart-heading">
-            <div class="eyebrow">Comparaison des groupes de richesse</div>
-            <h3>Médailles moyennes par pays selon le PIB par habitant</h3>
-            <button type="button" id="eco-focus" class="eco-focus" hidden title="Retirer le repère du pays"></button>
-          </div>
-          <div class="panneau">
-            <p id="nuage-aide">La moyenne inclut les pays sans médaille. Les groupes sont recalculés à chaque édition : la lecture suit un niveau de richesse relatif, pas les mêmes pays.</p>
-            <svg id="nuage" role="img" aria-label="Nombre moyen de médailles par pays selon le quintile de PIB par habitant"></svg>
+          <p class="eco-consigne">Survolez une barre pour voir ses pays dans le nuage, cliquez pour isoler le groupe. Survolez un cercle pour situer le pays sur les barres (trait orange), cliquez pour le repérer.</p>
+          <div class="eco-duo">
+            <section class="eco-colonne" aria-labelledby="barres-titre">
+              <div class="eco-chart-heading">
+                <div>
+                  <div class="eyebrow">Vue d’ensemble · groupes de richesse</div>
+                  <h3 id="barres-titre">Médailles par pays, en moyenne dans chaque groupe</h3>
+                </div>
+              </div>
+              <div class="panneau">
+                <p id="barres-aide" class="eco-aide"></p>
+                <svg id="barres" class="eco-graphique" role="img" aria-label="Moyenne de la mesure dans chaque groupe de richesse"></svg>
+              </div>
+            </section>
+            <section class="eco-colonne" aria-labelledby="nuage-titre">
+              <div class="eco-chart-heading">
+                <div>
+                  <div class="eyebrow">Détail · un cercle par pays</div>
+                  <h3 id="nuage-titre">Chaque pays selon son PIB par habitant</h3>
+                </div>
+              </div>
+              <div class="panneau">
+                <p id="nuage-aide" class="eco-aide"></p>
+                <svg id="nuage" class="eco-graphique" role="img" aria-label="Chaque pays selon son PIB par habitant et la mesure choisie"></svg>
+              </div>
+            </section>
           </div>
         </div>
       </div>
-      <p class="source-note">Sources : 120 Years of Olympic History (Kaggle) ; Maddison Project Database 2023 (PIB par habitant en dollars PPA 2011). Les pays sans PIB par habitant connu sont exclus. Une médaille collective compte pour une médaille par pays.</p>
+      <p class="source-note">Sources : 120 Years of Olympic History (Kaggle) ; Maddison Project Database 2023 (PIB par habitant en dollars PPA 2011, population). Les pays sans PIB par habitant connu forment un groupe à part (« PIB inconnu »), hors des quintiles. Une médaille collective compte pour une médaille par pays. Efficacité : médailles par athlète du pays rapportées à celles de l’ensemble des pays de l’édition ; elle n’est calculée que pour les pays d’au moins 5 athlètes.</p>
     </section>
 
     <!-- =====================================================================
