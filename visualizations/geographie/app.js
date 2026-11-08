@@ -15,7 +15,12 @@ import {
 
 const state = { season: 'Summer', year: 2016, sport: 'Tous les sports', metric: 'athletes', selectedNoc: null };
 // Rampe sarcelle commune aux vues 1, 2 et 3 (du plus faible au plus fort)
-const colors = ['#e3efec', '#c4dcd5', '#9cc7bc', '#72aea2', '#4a948a', '#287c78'];
+const colors = ['#cee3de', '#c4dcd5', '#9cc7bc', '#72aea2', '#4a948a', '#287c78'];
+
+const mapColors = d3.range(8).map(i => {
+  const t = (i + 1) / 8;
+  return d3.interpolateRgb(colors[1], colors[5])(t);
+});
 // Catégories du donut : tons sourds cohérents avec le projet ; le gris final est réservé à « Autres »
 // Sans sarcelle (réservée aux valeurs de la carte) ni rouge (réservé à la sélection)
 const sportColors = ['#3b556e', '#c96d3b', '#9a8c3a', '#7a5c8e', '#5f8fa8', '#a3785a', '#6e8b5a', '#c08497', '#b8bdb6'];
@@ -391,9 +396,9 @@ function drawMap(data, max) {
   // 172 pays sur 207 tombaient dans la première classe en 2016 (555 athlètes pour les États-Unis, médiane à 11).
   // La valeur 0 a sa propre teinte, la plus claire.
   const positives = data.map(row => row.value).filter(v => Number.isFinite(v) && v > 0);
-  const color = d3.scaleQuantile().domain(positives.length ? positives : [1]).range(colors.slice(1));
+  const color = d3.scaleQuantile().domain(positives.length ? positives : [1]).range(mapColors);
   const fillFor = value => (value > 0 ? color(value) : colors[0]);
-  renderMapLegend(color, positives.length > 0);
+  renderMapLegend(color, positives);
 
   svg.selectAll('.sphere')
     .data([null])
@@ -426,22 +431,38 @@ function drawMap(data, max) {
 }
 
 // Légende de la carte : une pastille par classe avec ses bornes (0 à part)
-function renderMapLegend(color, hasValues) {
+function renderMapLegend(color, values) {
   const isPercent = state.metric === 'specialization';
   const fmt = isPercent ? formatDecimal : formatNumber;
-  const [min, max] = d3.extent(color.domain());
-  const cuts = [min, ...color.quantiles(), max];
+
   const items = [{ fill: colors[0], label: '0' }];
-  if (hasValues) {
-    color.range().forEach((fill, i) => {
-      const lo = cuts[i], hi = cuts[i + 1];
-      if (hi === undefined || lo === undefined) return;
-      items.push({ fill, label: fmt(lo) === fmt(hi) ? fmt(lo) : `${fmt(lo)}-${fmt(hi)}` });
+
+  color.range().forEach(fill => {
+    const classValues = values.filter(value => color(value) === fill);
+
+    if (!classValues.length) return;
+
+    const min = d3.min(classValues);
+    const max = d3.max(classValues);
+
+    items.push({
+      fill,
+      label: min === max
+        ? fmt(min)
+        : `${fmt(min)}-${fmt(max)}`
     });
-  }
+  });
+
   items.push({ fill: '#d8d9d5', label: 'absent' });
-  geoSel('#geo-scale-classes', '#scale-classes').html(items
-    .map(item => `<span class="scale-item"><i style="background:${item.fill}"></i>${item.label}</span>`).join(''));
+
+  geoSel('#geo-scale-classes', '#scale-classes')
+    .html(items
+      .map(item =>
+        `<span class="scale-item">
+          <i style="background:${item.fill}"></i>${item.label}
+        </span>`
+      )
+      .join(''));
 }
 
 function selectCountry(row) {
