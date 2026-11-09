@@ -15,7 +15,7 @@ const EFFICACITE_MAX = 4;     // efficacité : au-delà, le cercle est posé sur
 // ---------- État de l'interface ----------
 const etat = {
   saison: "ete",
-  annee: null,          // null : dernière édition disponible
+  annee: 2016,          // édition affichée à l'ouverture (la plus proche si la saison change)
   mesure: "medailles",  // "medailles" ou "efficacite", commune aux deux graphiques
   paysFocus: null,      // code CIO du pays repéré (lien depuis une autre vue, recherche ou clic sur un cercle)
   quintileActif: null,  // groupe isolé par un clic sur sa barre ou sur sa zone du nuage

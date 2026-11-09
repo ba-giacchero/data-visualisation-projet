@@ -1,6 +1,7 @@
 import { HOST_EDITIONS, WINTER_HOST_EDITIONS, bindWikiPreviews, wikiLinkHtml, getOlympicRows, getEconomicRows, registerVizController, sportFr, formatNumber, formatDecimal, formatMoney, formatPercent } from '../shared-links.js';
 
-const state = { season: 'Summer', index: 13, rankMetric: 'medalsEffect' };
+const DEFAULT_YEAR = 2016; // édition affichée à l'ouverture : Jeux d'été 2016, comme les autres vues
+const state = { season: 'Summer', index: 0, rankMetric: 'medalsEffect' };
 
 const domSel = (scoped, fallback) => document.querySelector(scoped) ? d3.select(scoped) : d3.select(fallback);
 const domNode = (scoped, fallback) => document.querySelector(scoped) || document.querySelector(fallback);
@@ -17,6 +18,8 @@ const MEDAL_CLASSES = [
 const POINT_RADIUS = 10; // rayon unique des bulles du graphique d'impact
 const IMPACT_TRANSITION = 700; // ms, glissement des bulles quand on change d'effet mesuré
 const lastImpact = { metric: null, season: null }; // dernier état dessiné, pour savoir quand animer
+const PLAY_STEP = 1000; // ms par édition, bouton « Lecture » (même pas que les vues 1, 2 et 4)
+let playTimer = null;
 const medalColor =d3.scaleThreshold().domain([0, 50, 100, 200]).range(MEDAL_CLASSES.map(c => c.color));
 
 function aggregate(rows, economicRows) {
@@ -166,6 +169,7 @@ function updateSeasonHosts() {
 }
 
 function applyParams(params = {}) {
+  stopPlay();
   const seasonParam = params.season || params.saison;
   if (seasonParam === 'Winter' || seasonParam === 'hiver') state.season = 'Winter';
   else if (seasonParam === 'Summer' || seasonParam === 'ete') state.season = 'Summer';
@@ -187,6 +191,7 @@ function applyParams(params = {}) {
 function initialize(rows, economicRows) {
   model = aggregate(rows, economicRows);
   model.hosts = enrichHostsForSeason(state.season);
+  state.index = Math.max(0, model.hosts.findIndex(host => host.year === DEFAULT_YEAR));
   setupControls();
   const urlParams = Object.fromEntries(new URLSearchParams(window.location.search).entries());
   applyParams(urlParams);
@@ -195,19 +200,48 @@ function initialize(rows, economicRows) {
 
 function selectedHost() { return model.hosts[state.index] || model.hosts[0]; }
 
+function selectHost(host) {
+  state.index = model.hosts.indexOf(host);
+  render();
+}
+
+// Lecture : les éditions de la frise défilent une à une, dans l'ordre chronologique
+function stopPlay() {
+  if (playTimer) playTimer.stop();
+  playTimer = null;
+  d3.select('#dom-play').text('▶ Lecture').attr('aria-pressed', false);
+}
+
+function togglePlay() {
+  if (playTimer) return stopPlay();
+  const hosts = availableHosts();
+  if (!hosts.length) return;
+  if (selectedHost() === hosts[hosts.length - 1]) selectHost(hosts[0]); // depuis la fin : on repart du début
+  playTimer = d3.interval(() => {
+    const list = availableHosts();
+    const i = list.indexOf(selectedHost());
+    if (i >= list.length - 1) return stopPlay();
+    selectHost(list[i + 1]);
+  }, PLAY_STEP);
+  d3.select('#dom-play').text('❚❚ Pause').attr('aria-pressed', true);
+}
+
 function setupControls() {
   // Boutons à deux positions (Été / Hiver, Délégation / Médailles) à la place des listes déroulantes
   d3.selectAll('input[name=dom-season]').property('checked', function () { return this.value === state.season; }).on('change', event => {
+    stopPlay();
     state.season = event.target.value;
     updateSeasonHosts();
     render();
   });
   d3.selectAll('input[name=dom-rank-metric]').property('checked', function () { return this.value === state.rankMetric; }).on('change', event => {
+    stopPlay();
     state.rankMetric = event.target.value;
     const available = availableHosts();
     if (!available.some(host => host.year === selectedHost().year)) state.index = model.hosts.indexOf(available[0]);
     render();
   });
+  d3.select('#dom-play').on('click', togglePlay);
 }
 
 function availableHosts() {
@@ -230,7 +264,7 @@ function renderTimeline() {
     .attr('class', host => `timeline-item ${host.year === selectedHost().year ? 'active' : ''}`)
     .attr('aria-pressed', host => host.year === selectedHost().year)
     .attr('title', host => `${host.city} ${host.year} (${host.country})`)
-    .on('click', (_, host) => { state.index = model.hosts.indexOf(host); render(); })
+    .on('click', (_, host) => { stopPlay(); selectHost(host); })
     .html(host => {
       const v = host[state.rankMetric];
       const dot = v === null ? '#aeb8b1' : medalColor(v);
@@ -287,7 +321,7 @@ function renderImpact() {
   // Bulles de taille identique (les délégations hôtes vont de 400 à 700 athlètes : la taille ne se distinguait pas) ;
   // la bulle choisie passe au premier plan
   const fill = host => host[state.rankMetric] === null ? '#aeb8b1' : color(host[state.rankMetric]);
-  const points = plot.selectAll('.impact-point').data(validRows, host => host.year).join('circle').attr('class', host => `impact-point ${host.year === selectedHost().year ? 'active' : ''}`).attr('cx', host => x(host.year)).attr('cy', cy).attr('r', POINT_RADIUS).attr('fill', fill).on('click', (_, host) => { state.index = model.hosts.indexOf(host); render(); }).on('mouseenter', (event, host) => showTooltip(event, host)).on('mousemove', moveTooltip).on('mouseleave', () => tooltip.classed('visible', false));
+  const points = plot.selectAll('.impact-point').data(validRows, host => host.year).join('circle').attr('class', host => `impact-point ${host.year === selectedHost().year ? 'active' : ''}`).attr('cx', host => x(host.year)).attr('cy', cy).attr('r', POINT_RADIUS).attr('fill', fill).on('click', (_, host) => { stopPlay(); selectHost(host); }).on('mouseenter', (event, host) => showTooltip(event, host)).on('mousemove', moveTooltip).on('mouseleave', () => tooltip.classed('visible', false));
   plot.select('.impact-point.active').raise();
   // Effet visuel : les bulles glissent de leur ancienne position vers la nouvelle et changent de couleur en douceur
   if (animate) {

@@ -2019,8 +2019,9 @@ select {
   text-align: right;
 }
 
-/* Bouton « Lecture » des vues 1 et 4 : même apparence que celui de la vue 2 */
+/* Bouton « Lecture » des vues 1, 3 et 4 : même apparence que celui de la vue 2 */
 #sec-geographie .bouton-lecture,
+#sec-domicile .bouton-lecture,
 #sec-anatomie .bouton-lecture {
   padding: 5px 12px;
   border: 1px solid #326f67;
@@ -2033,6 +2034,7 @@ select {
 }
 
 #sec-geographie .bouton-lecture[aria-pressed="true"],
+#sec-domicile .bouton-lecture[aria-pressed="true"],
 #sec-anatomie .bouton-lecture[aria-pressed="true"] {
   background: #326f67;
   color: #fff;
